@@ -1,0 +1,22 @@
+<Window x:Class="TypingApp.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Typing v0.1 Settings" Height="250" Width="300" ResizeMode="NoResize" WindowStartupLocation="CenterScreen"
+        Icon="/Resources/TypingClipboard v0.1.png">
+    <StackPanel Margin="10">
+        <Label Content="Typing Delay (ms):"/>
+        <TextBox Name="txtDelay" Height="25" VerticalContentAlignment="Center"/>
+        
+        <Label Content="Paste Hotkey:" Margin="0,10,0,0"/>
+        <StackPanel Orientation="Horizontal">
+            <TextBox Name="txtHotkey" Width="150" Height="25" VerticalContentAlignment="Center" IsReadOnly="True" Focusable="False" Margin="0,0,10,0"/>
+            <Button Name="btnChangeHotkey" Content="Change" Width="60" Height="25" Click="BtnChangeHotkey_Click"/>
+        </StackPanel>
+        <TextBlock Name="lblStatus" Foreground="Gray" Margin="0,5,0,0" FontStyle="Italic"/>
+        
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button Name="btnSave" Content="Save" Width="70" Margin="0,0,10,0" Height="25" Click="BtnSave_Click"/>
+            <Button Name="btnCancel" Content="Cancel" Width="70" Height="25" Click="BtnCancel_Click"/>
+        </StackPanel>
+    </StackPanel>
+</Window>
