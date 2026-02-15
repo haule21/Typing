@@ -27,7 +27,7 @@ jobs:
       # 프로젝트 파일 경로가 정확한지 다시 한번 확인하세요. 
       # 만약 폴더 구조가 다르다면 아래 경로를 수정해야 합니다.
       - name: Build Single-File Executable
-        run: dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o release_output
+        run: dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:PublishTrimmed=true -o release_output
 
       - name: Create Release and Upload Asset
         uses: softprops/action-gh-release@v1
@@ -48,6 +48,6 @@ jobs:
           if (git diff --staged --quiet) {
             Write-Host "No changes to commit"
           } else {
-            git commit -m "Update binary in download folder [skip ci]"
+            git commit -m "Update binary (exe) in download folder [skip ci]"
             git push origin HEAD:main
           }

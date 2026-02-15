@@ -42,7 +42,10 @@ Right-click the system tray icon and select **Settings** to:
 
 ## Installation
 
-Download the latest `TypingApp.exe` from the [Releases](https://github.com/haule21/Typing/releases) page. No installation required; just run the executable.
+Download the latest `TypingApp.exe` from the [Releases](https://github.com/haule21/Typing/releases) page or directly from the repository:
+[Download TypingApp.exe](https://github.com/haule21/Typing/raw/main/download/TypingApp.exe)
+
+Run `TypingApp.exe`. No installation required.
 
 ## Build
 
