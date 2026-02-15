@@ -36,17 +36,15 @@ jobs:
           $pwd = ConvertTo-SecureString -String "TypingAppPassword" -Force -AsPlainText
           Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
           
-          # 2. MSBuild를 사용하여 MSIX 빌드 (이 부분이 핵심입니다)
-          # dotnet publish 대신 msbuild를 사용하면 Appx 패키징 타겟이 확실히 실행됩니다.
-          # WindowsPackageType=MSIX를 명시하여 csproj의 None 설정을 덮어씁니다.
+          # 2. MSBuild로 MSIX 빌드 강제 실행
+          # dotnet publish 대신 msbuild를 사용하면 Appx 패키징 타겟이 확실히 작동합니다.
           msbuild TypingApp.csproj /p:Configuration=Release /p:Platform=x64 `
-            /p:WindowsPackageType=MSIX `
-            /p:UapAppxPackageBuildMode=SideloadOnly `
-            /p:AppxBundle=Never `
             /p:GenerateAppxPackageOnBuild=true `
             /p:AppxPackageSigningEnabled=true `
             /p:PackageCertificateKeyFile="TypingCert.pfx" `
             /p:PackageCertificatePassword="TypingAppPassword" `
+            /p:UapAppxPackageBuildMode=SideloadOnly `
+            /p:AppxBundle=Never `
             /p:OutputPath="bin\Release\"
 
       - name: Commit and Push MSIX to Download Folder
