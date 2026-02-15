@@ -34,26 +34,27 @@ jobs:
           Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
           
           # Build MSIX (Signed via MSBuild properties)
-          dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=true -p:PackageCertificateKeyFile="TypingCert.pfx" -p:PackageCertificatePassword="TypingAppPassword"
+          # We must override WindowsPackageType=MSIX because it defaults to None in csproj
+          dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=true -p:PackageCertificateKeyFile="TypingCert.pfx" -p:PackageCertificatePassword="TypingAppPassword" -p:AppxPackageDir="AppxOutput"
 
       - name: Create Release and Upload Asset
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: '**/*.msix'
+          files: 'AppxOutput/**/*.msix'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Commit and Push MSIX to Download Folder
         run: |
           New-Item -ItemType Directory -Force -Path download
-          $msix = Get-ChildItem -Path . -Recurse -Filter *.msix | Select-Object -First 1
+          $msix = Get-ChildItem -Path AppxOutput -Recurse -Filter *.msix | Select-Object -First 1
           if ($msix) {
               Write-Host "Found MSIX: $($msix.FullName)"
               Copy-Item $msix.FullName -Destination download\TypingApp.msix
           } else {
-              Write-Error "MSIX file not found in workspace"
-              Get-ChildItem -Recurse # Debug: List all files to help diagnose
+              Write-Error "MSIX file not found in AppxOutput"
+              Get-ChildItem -Recurse # Debug info
               exit 1
           }
           git config --global user.name 'github-actions[bot]'
