@@ -35,7 +35,8 @@ jobs:
           
           # Build MSIX (Signed via MSBuild properties)
           # We must override WindowsPackageType=MSIX because it defaults to None in csproj
-          dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=true -p:PackageCertificateKeyFile="TypingCert.pfx" -p:PackageCertificatePassword="TypingAppPassword"
+          # IMPORTANT: PublishSingleFile conflict with MSIX, so we remove it.
+          dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained -p:WindowsPackageType=MSIX -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageSigningEnabled=true -p:PackageCertificateKeyFile="TypingCert.pfx" -p:PackageCertificatePassword="TypingAppPassword"
 
       - name: Create Release and Upload Asset
         uses: softprops/action-gh-release@v1
