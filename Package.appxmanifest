@@ -7,12 +7,12 @@
 
   <Identity
     Name="TypingApp"
-    Publisher="CN=User"
+    Publisher="CN=TypingApp"
     Version="0.1.0.0" />
 
   <Properties>
     <DisplayName>Typing</DisplayName>
-    <PublisherDisplayName>User</PublisherDisplayName>
+    <PublisherDisplayName>TypingApp</PublisherDisplayName>
     <Logo>Resources/TypingClipboard v0.1.png</Logo>
   </Properties>
 

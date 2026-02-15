@@ -29,30 +29,50 @@ jobs:
       - name: Build Single-File Executable
         run: dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o release_output
 
-      - name: Sign Single-File Executable
+      - name: Build and Sign MSIX & EXE
         run: |
-          # Generate Self-Signed Certificate
+          # Create PFX for signing
           $cert = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" -Subject "CN=TypingApp" -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -Type CodeSigningCert
           $pwd = ConvertTo-SecureString -String "TypingAppPassword" -Force -AsPlainText
           Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
           
-          # Locate Signtool (Common paths in Azure Runners)
+          # Build MSIX (Signed via MSBuild properties)
+          dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=true -p:PackageCertificateKeyFile="TypingCert.pfx" -p:PackageCertificatePassword="TypingAppPassword" -o msix_output
+
+          # Locate Signtool for EXE signing
           $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1
           if (-not $signtool) { $signtool = "signtool.exe" } else { $signtool = $signtool.FullName }
           
           Write-Host "Using Signtool: $signtool"
           
-          # Sign the EXE
+          # Sign the standalone EXE
           & $signtool sign /f "TypingCert.pfx" /p "TypingAppPassword" /fd sha256 /tr http://timestamp.digicert.com /td sha256 release_output\TypingApp.exe
 
       - name: Create Release and Upload Asset
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: release_output/TypingApp.exe
+          files: |
+            msix_output/TypingApp.msix
+            release_output/TypingApp.exe
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit and Push MSIX to Download Folder
+        run: |
+          New-Item -ItemType Directory -Force -Path download
+          Copy-Item msix_output\*.msix download\TypingApp.msix
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add download/TypingApp.msix
+          if (git diff --staged --quiet) {
+            Write-Host "No changes to commit"
+          } else {
+            git commit -m "Update binary (msix) in download folder [skip ci]"
+            git pull origin main --rebase
+            git push origin HEAD:main
+          }
 
       - name: Commit and Push Exe to Download Folder
         run: |
