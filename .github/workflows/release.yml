@@ -45,7 +45,8 @@ jobs:
             /p:PackageCertificatePassword="TypingAppPassword" `
             /p:UapAppxPackageBuildMode=SideloadOnly `
             /p:AppxBundle=Never `
-            /p:OutputPath="bin\Release\"
+            /p:WindowsPackageType=MSIX `
+            /p:AppxPackageDir="AppxPackages"
 
       - name: Commit and Push MSIX to Download Folder
         run: |
@@ -53,7 +54,7 @@ jobs:
           
           # 생성된 파일 위치를 찾기 위해 더 넓은 범위 탐색 및 로그 출력
           Write-Host "Searching for MSIX files..."
-          $msix = Get-ChildItem -Path "bin" -Recurse -Filter "*.msix" | Select-Object -First 1
+          $msix = Get-ChildItem -Path "AppxPackages" -Recurse -Filter "*.msix" | Select-Object -First 1
           
           if ($msix) {
               Write-Host "Found Package at: $($msix.FullName)"
