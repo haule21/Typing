@@ -43,7 +43,7 @@ Right-click the system tray icon and select **Settings** to:
 ## Installation
 
 ### Standalone EXE
-[Download TypingApp.exe](https://github.com/haule21/Typing/raw/main/download/TypingApp.exe)
+[Download Latest Release](https://github.com/haule21/Typing/releases/latest/download/TypingApp.exe)
 Single file executable. No installation required.
 *Note: The application is self-signed (SHA256). You may see a SmartScreen warning.*
 
