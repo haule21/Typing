@@ -3,13 +3,13 @@ name: Publish Release Asset
 on:
   push:
     tags:
-      - 'v*' # Triggers when a tag starting with 'v' is pushed
+      - 'v*'
 
 jobs:
   build-and-release:
     runs-on: windows-latest
     permissions:
-      contents: write # Required for creating releases
+      contents: write
 
     steps:
       - name: Checkout code
@@ -20,20 +20,27 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
+      # 경로를 명시하는 대신 모든 프로젝트 파일을 찾아 복구합니다.
       - name: Restore dependencies
-        run: dotnet restore TypingApp/TypingApp.csproj
+        run: dotnet restore
 
+      # 프로젝트 파일 경로가 정확한지 다시 한번 확인하세요. 
+      # 만약 폴더 구조가 다르다면 아래 경로를 수정해야 합니다.
       - name: Build Single-File Executable
-        run: dotnet publish TypingApp/TypingApp.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o release_output
-
-      - name: Zip Build Output
-        run: Compress-Archive -Path release_output/* -DestinationPath TypingApp-v${{ github.ref_name }}.zip
+        run: >
+          dotnet publish **/*.csproj 
+          -c Release 
+          -r win-x64 
+          --self-contained 
+          -p:PublishSingleFile=true 
+          -p:IncludeNativeLibrariesForSelfExtract=true 
+          -o release_output
 
       - name: Create Release and Upload Asset
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: TypingApp-v${{ github.ref_name }}.zip
+          files: release_output/TypingApp.exe
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
