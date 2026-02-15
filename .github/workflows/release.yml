@@ -37,7 +37,8 @@ jobs:
           
           # 2. EXE 빌드 및 서명 (SHA256)
           # SingleFile 배포: 하나의 exe 파일로 생성
-          dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained true -o published_app /p:PublishSingleFile=true /p:PublishReadyToRun=true
+          # /p:EnableCompressionInSingleFile=true: 내부 압축을 통해 용량을 대폭 줄임 (200MB+ -> 60~80MB 예상)
+          dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained true -o published_app /p:PublishSingleFile=true /p:PublishReadyToRun=true /p:EnableCompressionInSingleFile=true
           
           # 3. 서명 (SignTool 사용)
           # Windows SDK 경로에서 signtool을 찾아 사용하는데, ARM64 버전이 먼저 잡히는 문제가 있어 x64 위주로 필터링
@@ -51,16 +52,25 @@ jobs:
              exit 1
           }
 
-          # 4. GitHub Release 생성 및 업로드
-          # 파일 크기 제한(100MB)을 우회하고 버전 관리를 위해 Releases 기능을 사용
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: published_app/TypingApp.exe
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 4. 압축 (Zip) - 이중 압축으로 용량 최소화
+          Compress-Archive -Path "published_app\TypingApp.exe" -DestinationPath "published_app\TypingApp.zip" -Force
+
+      - name: Commit and Push Zip to Download Folder
+        run: |
+          New-Item -ItemType Directory -Force -Path download
+          
+          # Zip 파일 복사
+          Copy-Item "published_app\TypingApp.zip" -Destination "download\TypingApp.zip"
+          
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          # 기존 exe 제거 및 zip 추가
+          if (Test-Path "download\TypingApp.exe") { git rm "download\TypingApp.exe" }
+          git add download/TypingApp.zip
+          if (git diff --staged --quiet) {
+            Write-Host "No changes to commit"
+          } else {
+            git commit -m "Update compressed binary (zip) in download folder [skip ci]"
+            git pull origin main --rebase
+            git push origin HEAD:main
+          }
