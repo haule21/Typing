@@ -36,9 +36,9 @@ jobs:
           Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
           
           # 2. dotnet publish로 MSIX 빌드 실행
-          # -r win10-x64: MSIX 패키징을 위해 필수적인 Runtime Identifier
+          # -r win-x64: 일반적인 Windows x64 Runtime Identifier 사용 (win10-x64 오류 수정)
           # --self-contained: 의존성 포함
-          dotnet publish TypingApp.csproj -c Release -r win10-x64 --self-contained true `
+          dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained true `
             -p:GenerateAppxPackageOnBuild=true `
             -p:AppxPackageSigningEnabled=true `
             -p:PackageCertificateKeyFile="TypingCert.pfx" `
