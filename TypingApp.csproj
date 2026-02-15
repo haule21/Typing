@@ -7,8 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <EnableMsixTooling>true</EnableMsixTooling>
-    <WindowsPackageType Condition="'$(Configuration)' != 'Release'">None</WindowsPackageType>
-    <WindowsPackageType Condition="'$(Configuration)' == 'Release'">MSIX</WindowsPackageType>
+    <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
   </PropertyGroup>
