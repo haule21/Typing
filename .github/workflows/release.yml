@@ -26,10 +26,7 @@ jobs:
 
       # 프로젝트 파일 경로가 정확한지 다시 한번 확인하세요. 
       # 만약 폴더 구조가 다르다면 아래 경로를 수정해야 합니다.
-      - name: Build Single-File Executable
-        run: dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o release_output
-
-      - name: Build and Sign MSIX & EXE
+      - name: Build and Sign MSIX Package
         run: |
           # Create PFX for signing
           $cert = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" -Subject "CN=TypingApp" -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -Type CodeSigningCert
@@ -39,22 +36,11 @@ jobs:
           # Build MSIX (Signed via MSBuild properties)
           dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=true -p:PackageCertificateKeyFile="TypingCert.pfx" -p:PackageCertificatePassword="TypingAppPassword" -o msix_output
 
-          # Locate Signtool for EXE signing
-          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1
-          if (-not $signtool) { $signtool = "signtool.exe" } else { $signtool = $signtool.FullName }
-          
-          Write-Host "Using Signtool: $signtool"
-          
-          # Sign the standalone EXE
-          & $signtool sign /f "TypingCert.pfx" /p "TypingAppPassword" /fd sha256 /tr http://timestamp.digicert.com /td sha256 release_output\TypingApp.exe
-
       - name: Create Release and Upload Asset
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: |
-            msix_output/TypingApp.msix
-            release_output/TypingApp.exe
+          files: msix_output/TypingApp.msix
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -77,21 +63,6 @@ jobs:
             Write-Host "No changes to commit"
           } else {
             git commit -m "Update binary (msix) in download folder [skip ci]"
-            git pull origin main --rebase
-            git push origin HEAD:main
-          }
-
-      - name: Commit and Push Exe to Download Folder
-        run: |
-          New-Item -ItemType Directory -Force -Path download
-          Copy-Item release_output\TypingApp.exe download\TypingApp.exe
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add download/TypingApp.exe
-          if (git diff --staged --quiet) {
-            Write-Host "No changes to commit"
-          } else {
-            git commit -m "Update binary (exe) in download folder [skip ci]"
             git pull origin main --rebase
             git push origin HEAD:main
           }

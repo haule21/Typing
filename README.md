@@ -42,11 +42,7 @@ Right-click the system tray icon and select **Settings** to:
 
 ## Installation
 
-### Option 1: Standalone EXE (Portable)
-[Download TypingApp.exe](https://github.com/haule21/Typing/raw/main/download/TypingApp.exe)
-Run `TypingApp.exe`. No installation required.
-
-### Option 2: MSIX Installer (Recommended)
+### MSIX Installer
 [Download TypingApp.msix](https://github.com/haule21/Typing/raw/main/download/TypingApp.msix)
 Double-click to install. Updates are managed by Windows.
 *Note: You may need to trust the self-signed certificate if prompted.*
