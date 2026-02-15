@@ -35,26 +35,25 @@ jobs:
           $pwd = ConvertTo-SecureString -String "TypingAppPassword" -Force -AsPlainText
           Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
           
-          # 2. dotnet publish로 MSIX 빌드 실행
-          # -r win-x64: 일반적인 Windows x64 Runtime Identifier 사용 (win10-x64 오류 수정)
-          # --self-contained: 의존성 포함
-          dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained true `
+          # 2. dotnet build로 MSIX 빌드 실행
+          # dotnet publish는 패키징 단계를 건너뛸 수 있으므로 build 명령어를 사용합니다.
+          # GenerateAppxPackageOnBuild=true가 Build 타겟에서 작동합니다.
+          dotnet build TypingApp.csproj -c Release -r win-x64 --self-contained true `
             -p:GenerateAppxPackageOnBuild=true `
             -p:AppxPackageSigningEnabled=true `
             -p:PackageCertificateKeyFile="TypingCert.pfx" `
             -p:PackageCertificatePassword="TypingAppPassword" `
             -p:UapAppxPackageBuildMode=SideloadOnly `
             -p:AppxBundle=Never `
-            -p:WindowsPackageType=MSIX `
-            -p:AppxPackageDir="AppxPackages"
+            -p:WindowsPackageType=MSIX
 
       - name: Commit and Push MSIX to Download Folder
         run: |
           New-Item -ItemType Directory -Force -Path download
           
-          # 생성된 파일 위치를 찾기 위해 더 넓은 범위 탐색 및 로그 출력
+          # 생성된 파일 위치를 찾기 위해 전체 bin 탐색
           Write-Host "Searching for MSIX files..."
-          $msix = Get-ChildItem -Path "AppxPackages" -Recurse -Filter "*.msix" | Select-Object -First 1
+          $msix = Get-ChildItem -Path "bin" -Recurse -Filter "*.msix" | Select-Object -First 1
           
           if ($msix) {
               Write-Host "Found Package at: $($msix.FullName)"
