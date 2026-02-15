@@ -28,37 +28,36 @@ jobs:
       # 만약 폴더 구조가 다르다면 아래 경로를 수정해야 합니다.
       - name: Build and Sign MSIX Package
         run: |
-          # Create PFX for signing
+          # 1. 인증서 생성
           $cert = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" -Subject "CN=TypingApp" -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -Type CodeSigningCert
           $pwd = ConvertTo-SecureString -String "TypingAppPassword" -Force -AsPlainText
           Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
           
-          # Build MSIX (Signed via MSBuild properties)
-          # We must override WindowsPackageType=MSIX because it defaults to None in csproj
-          # IMPORTANT: Restore GenerateAppxPackageOnBuild to ensure packaging occurs.
-          dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained -p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageSigningEnabled=true -p:PackageCertificateKeyFile="TypingCert.pfx" -p:PackageCertificatePassword="TypingAppPassword"
-
-      - name: Create Release and Upload Asset
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: '**/*.msix*'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 2. MSIX 빌드 (MSBuild 인자를 명확히 전달)
+          # -p:PublishAppxPackage=true 를 추가하여 패키징을 강제합니다.
+          dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained `
+            -p:GenerateAppxPackageOnBuild=true `
+            -p:AppxPackageSigningEnabled=true `
+            -p:PackageCertificateKeyFile="TypingCert.pfx" `
+            -p:PackageCertificatePassword="TypingAppPassword" `
+            -p:AppxPackageDir="bin\outputs\" `
+            -p:AppxBundle=Never
 
       - name: Commit and Push MSIX to Download Folder
         run: |
           New-Item -ItemType Directory -Force -Path download
-          # Search everywhere for .msix or .msixbundle
-          $msix = Get-ChildItem -Path . -Recurse -Include *.msix, *.msixbundle | Select-Object -First 1
+          
+          # 생성된 파일 위치를 찾기 위해 더 넓은 범위 탐색 및 로그 출력
+          Write-Host "Searching for MSIX files..."
+          $msix = Get-ChildItem -Path "bin" -Recurse -Filter "*.msix" | Select-Object -First 1
           
           if ($msix) {
-              Write-Host "Found Package: $($msix.FullName)"
-              Copy-Item $msix.FullName -Destination download\TypingApp.msix
+              Write-Host "Found Package at: $($msix.FullName)"
+              Copy-Item $msix.FullName -Destination "download\TypingApp.msix"
           } else {
-              Write-Error "MSIX file not found in workspace"
-              Write-Host "Listing bin directory for debugging:"
-              Get-ChildItem -Path bin -Recurse
+              Write-Host "Current Directory Structure:"
+              Get-ChildItem -Path . -Recurse | Select-Object FullName
+              Write-Error "MSIX file not found. Check if the project supports MSIX packaging."
               exit 1
           }
           git config --global user.name 'github-actions[bot]'
