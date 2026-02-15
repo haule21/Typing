@@ -62,7 +62,14 @@ jobs:
       - name: Commit and Push MSIX to Download Folder
         run: |
           New-Item -ItemType Directory -Force -Path download
-          Copy-Item msix_output\*.msix download\TypingApp.msix
+          $msix = Get-ChildItem -Path msix_output -Recurse -Filter *.msix | Select-Object -First 1
+          if ($msix) {
+              Write-Host "Found MSIX: $($msix.FullName)"
+              Copy-Item $msix.FullName -Destination download\TypingApp.msix
+          } else {
+              Write-Error "MSIX file not found in msix_output"
+              exit 1
+          }
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add download/TypingApp.msix
