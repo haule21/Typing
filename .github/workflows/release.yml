@@ -49,5 +49,6 @@ jobs:
             Write-Host "No changes to commit"
           } else {
             git commit -m "Update binary (exe) in download folder [skip ci]"
+            git pull origin main --rebase
             git push origin HEAD:main
           }
