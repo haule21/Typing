@@ -37,7 +37,7 @@ jobs:
           Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
           
           # Locate Signtool (Common paths in Azure Runners)
-          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" | Where-Object { $_.FullName -like "*x64*" } | OAuth-First -ErrorAction SilentlyContinue
+          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1
           if (-not $signtool) { $signtool = "signtool.exe" } else { $signtool = $signtool.FullName }
           
           Write-Host "Using Signtool: $signtool"
