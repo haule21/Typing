@@ -40,9 +40,8 @@ jobs:
           dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained true -o published_app /p:PublishSingleFile=true /p:PublishReadyToRun=true
           
           # 3. 서명 (SignTool 사용)
-          # Windows SDK 경로에서 signtool을 찾아 사용하거나, 환경 변수에 추가된 경로 사용
-          # 여기서는 기본적으로 path에 잡히는 경우가 많으나, 안전하게 찾아서 실행
-          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" | Select-Object -First 1
+          # Windows SDK 경로에서 signtool을 찾아 사용하는데, ARM64 버전이 먼저 잡히는 문제가 있어 x64 위주로 필터링
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" | Where-Object { $_.FullName -like "*\x64\*" } | Select-Object -First 1
           
           if ($signtool) {
               Write-Host "Using Signtool: $($signtool.FullName)"
