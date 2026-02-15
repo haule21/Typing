@@ -52,25 +52,27 @@ jobs:
              exit 1
           }
 
-          # 4. 압축 (Zip) - 이중 압축으로 용량 최소화
-          Compress-Archive -Path "published_app\TypingApp.exe" -DestinationPath "published_app\TypingApp.zip" -Force
+          # 4. 압축 (Zip) 단계 제거 -> EnableCompressionInSingleFile로 충분히 작아짐 (예상)
+          # Compress-Archive -Path "published_app\TypingApp.exe" -DestinationPath "published_app\TypingApp.zip" -Force
 
-      - name: Commit and Push Zip to Download Folder
+      - name: Commit and Push EXE to Download Folder
         run: |
           New-Item -ItemType Directory -Force -Path download
           
-          # Zip 파일 복사
-          Copy-Item "published_app\TypingApp.zip" -Destination "download\TypingApp.zip"
+          # EXE 파일 복사
+          Copy-Item "published_app\TypingApp.exe" -Destination "download\TypingApp.exe"
           
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          # 기존 exe 제거 및 zip 추가
-          if (Test-Path "download\TypingApp.exe") { git rm "download\TypingApp.exe" }
-          git add download/TypingApp.zip
+          
+          # 기존 zip 있다면 제거
+          if (Test-Path "download\TypingApp.zip") { git rm "download\TypingApp.zip" }
+          
+          git add download/TypingApp.exe
           if (git diff --staged --quiet) {
             Write-Host "No changes to commit"
           } else {
-            git commit -m "Update compressed binary (zip) in download folder [skip ci]"
+            git commit -m "Update compressed binary (exe) in download folder [skip ci]"
             git pull origin main --rebase
             git push origin HEAD:main
           }
