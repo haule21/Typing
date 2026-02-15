@@ -26,22 +26,26 @@ jobs:
 
       # 프로젝트 파일 경로가 정확한지 다시 한번 확인하세요. 
       # 만약 폴더 구조가 다르다면 아래 경로를 수정해야 합니다.
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1
+
       - name: Build and Sign MSIX Package
         run: |
-          # 1. 인증서 생성
+          # 1. 인증서 생성 (동일)
           $cert = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" -Subject "CN=TypingApp" -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -Type CodeSigningCert
           $pwd = ConvertTo-SecureString -String "TypingAppPassword" -Force -AsPlainText
           Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
           
-          # 2. MSIX 빌드 (MSBuild 인자를 명확히 전달)
-          # -p:PublishAppxPackage=true 를 추가하여 패키징을 강제합니다.
-          dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained `
-            -p:GenerateAppxPackageOnBuild=true `
-            -p:AppxPackageSigningEnabled=true `
-            -p:PackageCertificateKeyFile="TypingCert.pfx" `
-            -p:PackageCertificatePassword="TypingAppPassword" `
-            -p:AppxPackageDir="bin\outputs\" `
-            -p:AppxBundle=Never
+          # 2. MSBuild를 사용하여 MSIX 빌드 (이 부분이 핵심입니다)
+          # dotnet publish 대신 msbuild를 사용하면 Appx 패키징 타겟이 확실히 실행됩니다.
+          msbuild TypingApp.csproj /p:Configuration=Release /p:Platform=x64 `
+            /p:UapAppxPackageBuildMode=SideloadOnly `
+            /p:AppxBundle=Never `
+            /p:GenerateAppxPackageOnBuild=true `
+            /p:AppxPackageSigningEnabled=true `
+            /p:PackageCertificateKeyFile="TypingCert.pfx" `
+            /p:PackageCertificatePassword="TypingAppPassword" `
+            /p:OutputPath="bin\Release\"
 
       - name: Commit and Push MSIX to Download Folder
         run: |
