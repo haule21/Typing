@@ -23,23 +23,23 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1
 
-      - name: Restore dependencies
-        run: msbuild TypingApp.csproj /t:Restore /p:Configuration=Release
-
-      - name: Build and Package MSIX
+      - name: Publish MSIX Package
         run: |
-          # Use MSBuild /t:Build with specific MSIX properties
-          # Note: We rely on the CSPROJ 'Release' condition to set WindowsPackageType=MSIX
-          msbuild TypingApp.csproj /t:Build `
-            /p:Configuration=Release `
-            /p:Platform=x64 `
-            /p:AppxPackageSigningEnabled=true `
-            /p:PackageCertificateKeyFile="TypingCert.pfx" `
-            /p:PackageCertificatePassword="TypingAppPassword" `
-            /p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
-            /p:AppxBundle=Always `
-            /p:UapAppxPackageBuildMode=SideloadOnly `
-            /p:Verbosity=detailed
+          # Use dotnet publish as requested, with explicit MSIX properties
+          # We pass WindowsPackageType=MSIX to ensure the MSIX targets are invoked
+          dotnet publish TypingApp.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=false `
+            -p:WindowsPackageType=MSIX `
+            -p:AppxPackageSigningEnabled=true `
+            -p:PackageCertificateKeyFile="TypingCert.pfx" `
+            -p:PackageCertificatePassword="TypingAppPassword" `
+            -p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
+            -p:GenerateAppxPackageOnBuild=true `
+            -p:AppxBundle=Always `
+            -p:UapAppxPackageBuildMode=SideloadOnly
 
       - name: List All Workspace Files (Debug)
         if: always()
@@ -51,8 +51,14 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path "FinalOutput"
           
-          # Scan entire workspace for the artifacts (MSBuild reliable default is AppxPackages/ but we scan all)
-          $files = Get-ChildItem -Path . -Recurse -Include *.msixbundle, *.msix, *.appxbundle | Where-Object { $_.FullName -notlike "*FinalOutput*" }
+          # Search in the explicit AppxPackages directory first
+          $searchPath = "${{ github.workspace }}\AppxPackages"
+          if (-not (Test-Path $searchPath)) {
+             Write-Host "AppxPackages path not found, searching entire workspace..."
+             $searchPath = "."
+          }
+
+          $files = Get-ChildItem -Path $searchPath -Recurse -Include *.msixbundle, *.msix, *.appxbundle | Where-Object { $_.FullName -notlike "*FinalOutput*" }
           
           if ($files) {
               foreach ($f in $files) {
