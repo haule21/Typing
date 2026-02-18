@@ -23,18 +23,19 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1
 
-      # 1. 인증서 생성 (이 단계가 없으면 MSIX가 안 만들어집니다)
+      # 1. 인증서 생성 (MSIX 빌드를 위해 필수)
       - name: Create Signing Certificate
         run: |
           $cert = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" -Subject "CN=TypingApp" -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -Type CodeSigningCert
           $pwd = ConvertTo-SecureString -String "TypingAppPassword" -Force -AsPlainText
           Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
 
-      # 2. MSIX 패키지 빌드 (가장 확실한 MSBuild 방식 사용)
+      # 2. MSIX 패키지 빌드 (msbuild /restore 사용하여 Assets 파일 에러 해결)
       - name: Build and Package MSIX
         run: |
           msbuild TypingApp.csproj `
             /t:Publish `
+            /restore `
             /p:Configuration=Release `
             /p:Platform=x64 `
             /p:AppxPackageSigningEnabled=true `
@@ -45,11 +46,11 @@ jobs:
             /p:AppxBundle=Always `
             /p:UapAppxPackageBuildMode=SideloadOnly
 
-      # 3. 디버깅: 파일이 어디에 생겼는지 출력 (실패 시 확인용)
-      - name: List Files for Debugging
+      # 3. 디버깅용 파일 리스트 출력 (파일을 못 찾을 경우 로그 확인용)
+      - name: Debug - List All Workspace Files
         if: always()
         run: |
-          Write-Host "--- 작업 디렉토리 전체 파일 검색 ---"
+          Write-Host "--- 전체 파일 구조 검색 ---"
           Get-ChildItem -Path . -Recurse -Include *.msix, *.msixbundle, *.appxbundle | Select-Object FullName
 
       # 4. 파일 수집 및 스테이징
@@ -58,16 +59,16 @@ jobs:
           if (Test-Path "FinalOutput") { Remove-Item -Recurse -Force "FinalOutput" }
           New-Item -ItemType Directory -Force -Path "FinalOutput"
           
-          # AppxPackages 폴더 또는 전체 폴더에서 확장자 검색
-          $files = Get-ChildItem -Path . -Recurse -Include *.msixbundle, *.msix, *.appxbundle | Where-Object { $_.FullName -notmatch "obj|FinalOutput" }
+          # 하위 폴더 깊숙이 있는 패키지까지 모두 검색
+          $files = Get-ChildItem -Path . -Recurse -Include *.msixbundle, *.msix, *.appxbundle | Where-Object { $_.FullName -notmatch "obj|FinalOutput|_Test" }
           
           if ($files) {
               foreach ($f in $files) {
-                  Write-Host "✅ 발견: $($f.FullName)"
+                  Write-Host "✅ 발견된 아티팩트: $($f.FullName)"
                   Copy-Item $f.FullName -Destination "FinalOutput"
               }
           } else {
-              Write-Error "❌ MSIX 파일을 찾을 수 없습니다. 빌드 설정을 확인하세요."
+              Write-Error "❌ MSIX 파일을 찾을 수 없습니다. 빌드 로그의 에러 메시지를 확인해주세요."
               exit 1
           }
 
