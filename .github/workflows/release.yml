@@ -52,8 +52,9 @@ jobs:
           # Create a staging directory
           New-Item -ItemType Directory -Force -Path "FinalOutput"
           
-          # Find any MSIX or Bundle files in the build output
-          $files = Get-ChildItem -Path "bin" -Recurse -Include *.msixbundle, *.msix
+          # Find any MSIX or Bundle files in the ENTIRE workspace
+          # (MSBuild defaults to AppxPackages, but we search everywhere to be safe)
+          $files = Get-ChildItem -Path . -Recurse -Include *.msixbundle, *.msix
           
           if ($files) {
               foreach ($f in $files) {
@@ -61,8 +62,8 @@ jobs:
                   Copy-Item $f.FullName -Destination "FinalOutput"
               }
           } else {
-              Write-Error "No MSIX or MSIXBundle files found in bin folder!"
-              Get-ChildItem -Path "bin" -Recurse # Debug listing
+              Write-Error "No MSIX or MSIXBundle files found in workspace!"
+              Get-ChildItem -Path . -Recurse | Select-Object FullName # Debug listing
               exit 1
           }
 
