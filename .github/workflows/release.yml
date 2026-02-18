@@ -53,8 +53,7 @@ jobs:
             -p:PackageCertificateThumbprint="${{ env.CERT_THUMBPRINT }}" `
             -p:AppxPackageDir=".\AppxPackages\" `
             -p:AppxBundle=Always `
-            --self-contained true `
-            -p:PublishTrimmed=true  # 트리밍 활성화
+            --self-contained false  # 자가 포함 빌드 중단
 
       - name: Locate and Stage MSIX Files
         run: |
