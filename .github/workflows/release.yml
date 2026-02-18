@@ -46,18 +46,18 @@ jobs:
             /p:AppxPackageSigningEnabled=true `
             /p:PackageCertificateKeyFile="TypingCert.pfx" `
             /p:PackageCertificatePassword="TypingAppPassword" `
-            /p:AppxPackageDir="${{ github.workspace }}\AppxOutput\"
+            /p:AppxPackageDir="AppxPackages\\"
 
       - name: List Build Outputs (Debug)
-        run: Get-ChildItem -Path "${{ github.workspace }}\AppxOutput" -Recurse
+        run: Get-ChildItem -Path AppxPackages -Recurse
 
       - name: Create Release and Upload Asset
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            ${{ github.workspace }}/AppxOutput/**/*.msixbundle
-            ${{ github.workspace }}/AppxOutput/**/*.msix
+            AppxPackages/**/*.msixbundle
+            AppxPackages/**/*.msix
           generate_release_notes: true
           fail_on_unmatched_files: true
         env:
