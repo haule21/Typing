@@ -6,13 +6,13 @@
   IgnorableNamespaces="uap rescap">
 
   <Identity
-    Name="TypingClipboard"
-    Publisher="CN=TypingApp"
+    Name="Clipboard Typing"
+    Publisher="CN=양성우"
     Version="1.0.0.0" />
 
   <Properties>
     <DisplayName>Typing</DisplayName>
-    <PublisherDisplayName>TypingApp</PublisherDisplayName>
+    <PublisherDisplayName>양성우</PublisherDisplayName>
     <Logo>Resources/StoreLogo.png</Logo>
   </Properties>
 

@@ -32,4 +32,10 @@
       <SubType>Designer</SubType>
     </AppxManifest>
   </ItemGroup>
+
+  <ItemGroup>
+  <Content Include="Resources\*.png">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </Content>
+</ItemGroup>
 </Project>
