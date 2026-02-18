@@ -45,8 +45,6 @@ jobs:
 
       - name: Build and Package MSIX
         run: |
-          # 파일 경로 대신 /p:PackageCertificateThumbprint 를 사용합니다.
-          # 이 방식은 비밀번호 입력이 필요 없어 APPX0105 에러를 원천 차단합니다.
           dotnet publish TypingApp.csproj `
             -c Release `
             -r win-x64 `
@@ -55,7 +53,8 @@ jobs:
             -p:PackageCertificateThumbprint="${{ env.CERT_THUMBPRINT }}" `
             -p:AppxPackageDir=".\AppxPackages\" `
             -p:AppxBundle=Always `
-            --self-contained true
+            --self-contained true `
+            -p:PublishTrimmed=true  # 트리밍 활성화
 
       - name: Locate and Stage MSIX Files
         run: |

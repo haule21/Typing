@@ -13,6 +13,10 @@
     <AppxPackageSigningEnabled>true</AppxPackageSigningEnabled>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>link</TrimMode>
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+
     <NoWarn>$(NoWarn);MSB3277;NU1603</NoWarn>
   </PropertyGroup>
 
