@@ -26,20 +26,17 @@ jobs:
       - name: Create and Import Signing Certificate
         id: create_cert
         run: |
-          # 1. 인증서 생성 및 저장소 설치
           $pwd = ConvertTo-SecureString -String "TypingAppPassword" -Force -AsPlainText
           $cert = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" `
-                    -Subject "CN=TypingApp" `
+                    -Subject "CN=DF735157-E81C-4F4F-BDCF-67A5922C37B1" `
                     -KeyAlgorithm RSA -KeyLength 2048 `
                     -HashAlgorithm SHA256 -Type CodeSigningCert
           
-          # 2. 신뢰할 수 있는 피플 저장소에도 복사 (패키징 승인용)
           $store = New-Object System.Security.Cryptography.X509Certificates.X509Store("TrustedPeople", "CurrentUser")
           $store.Open("ReadWrite")
           $store.Add($cert)
           $store.Close()
 
-          # 3. 인증서 지문(Thumbprint)을 환경 변수로 저장
           echo "CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
           Write-Host "✅ Certificate created with Thumbprint: $($cert.Thumbprint)"
 

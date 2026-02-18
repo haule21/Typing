@@ -6,8 +6,8 @@
   IgnorableNamespaces="uap rescap">
 
   <Identity
-  Name="TypingClipboard" 
-  Publisher="CN=TypingApp"
+  Name="001B18BB.ClipboardTyping" 
+  Publisher="CN=DF735157-E81C-4F4F-BDCF-67A5922C37B1"
   Version="1.0.0.0" />
 
   <Properties>
