@@ -20,59 +20,45 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      # dotnet publish에서 restore를 자동으로 수행하므로 별도 단계는 제거하거나 유지해도 무방하지만,
-      # 명시적인 restore가 있으면 캐싱에 유리할 수 있습니다. 여기서는 publish에 통합합니다.
-
-      # 프로젝트 파일 경로가 정확한지 다시 한번 확인하세요. 
-      # 만약 폴더 구조가 다르다면 아래 경로를 수정해야 합니다.
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1
 
-      - name: Build and Sign MSIX Package
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Create Signing Certificate
         run: |
-          # 1. 인증서 생성 (동일)
+          # Create Self-Signed Cert (Standard procedure for test/store association absent)
+          # Note: For real Store distribution, you may replace this with a valid Store certificate from Secrets.
           $cert = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" -Subject "CN=TypingApp" -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -Type CodeSigningCert
           $pwd = ConvertTo-SecureString -String "TypingAppPassword" -Force -AsPlainText
           Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
-          
-          # 2. EXE 빌드 및 서명 (SHA256)
-          # SingleFile 배포: 하나의 exe 파일로 생성
-          # /p:EnableCompressionInSingleFile=true: 내부 압축을 통해 용량을 대폭 줄임 (200MB+ -> 60~80MB 예상)
-          dotnet publish TypingApp.csproj -c Release -r win-x64 --self-contained true -o published_app /p:PublishSingleFile=true /p:PublishReadyToRun=true /p:EnableCompressionInSingleFile=true
-          
-          # 3. 서명 (SignTool 사용)
-          # Windows SDK 경로에서 signtool을 찾아 사용하는데, ARM64 버전이 먼저 잡히는 문제가 있어 x64 위주로 필터링
-          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" | Where-Object { $_.FullName -like "*\x64\*" } | Select-Object -First 1
-          
-          if ($signtool) {
-              Write-Host "Using Signtool: $($signtool.FullName)"
-              & $signtool.FullName sign /f "TypingCert.pfx" /p "TypingAppPassword" /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "published_app\TypingApp.exe"
-          } else {
-             Write-Error "Signtool not found!"
-             exit 1
-          }
 
-          # 4. 압축 (Zip) 단계 제거 -> EnableCompressionInSingleFile로 충분히 작아짐 (예상)
-          # Compress-Archive -Path "published_app\TypingApp.exe" -DestinationPath "published_app\TypingApp.zip" -Force
-
-      - name: Commit and Push EXE to Download Folder
+      - name: Build MSIX Package
         run: |
-          New-Item -ItemType Directory -Force -Path download
-          
-          # EXE 파일 복사
-          Copy-Item "published_app\TypingApp.exe" -Destination "download\TypingApp.exe"
-          
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          
-          # 기존 zip 있다면 제거
-          if (Test-Path "download\TypingApp.zip") { git rm "download\TypingApp.zip" }
-          
-          git add download/TypingApp.exe
-          if (git diff --staged --quiet) {
-            Write-Host "No changes to commit"
-          } else {
-            git commit -m "Update compressed binary (exe) in download folder [skip ci]"
-            git pull origin main --rebase
-            git push origin HEAD:main
-          }
+          # Use MSBuild to generate the MSIX Package
+          # Removed PublishSingleFile to prevent crash issues (Event 10.3)
+          # GenerateAppxPackageOnBuild=true triggers the packaging
+          msbuild TypingApp.csproj /p:Configuration=Release /p:Platform=x64 `
+            /p:WindowsPackageType=MSIX `
+            /p:UapAppxPackageBuildMode=SideloadOnly `
+            /p:AppxBundle=Always `
+            /p:GenerateAppxPackageOnBuild=true `
+            /p:AppxPackageSigningEnabled=true `
+            /p:PackageCertificateKeyFile="TypingCert.pfx" `
+            /p:PackageCertificatePassword="TypingAppPassword" `
+            /p:OutputPath="bin\Release\"
+
+      - name: List Build Outputs (Debug)
+        run: Get-ChildItem -Path bin\Release -Recurse
+
+      - name: Create Release and Upload Asset
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            bin/Release/**/*.msixbundle
+            bin/Release/**/*.msix
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

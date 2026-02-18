@@ -13,7 +13,7 @@
   <Properties>
     <DisplayName>Typing</DisplayName>
     <PublisherDisplayName>TypingApp</PublisherDisplayName>
-    <Logo>Resources/TypingClipboard v0.1.png</Logo>
+    <Logo>Resources/StoreLogo.png</Logo>
   </Properties>
 
   <Dependencies>
@@ -33,10 +33,10 @@
         DisplayName="Typing"
         Description="Clipboard to Typing Utility"
         BackgroundColor="transparent"
-        Square150x150Logo="Resources/TypingClipboard v0.1.png"
-        Square44x44Logo="Resources/TypingClipboard v0.1.png">
-        <uap:DefaultTile Wide310x150Logo="Resources/TypingClipboard v0.1.png" />
-        <uap:SplashScreen Image="Resources/TypingClipboard v0.1.png" />
+        Square150x150Logo="Resources/Square150x150Logo.png"
+        Square44x44Logo="Resources/Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Resources/Square150x150Logo.png" />
+        <uap:SplashScreen Image="Resources/SplashScreen.png" />
       </uap:VisualElements>
     </Application>
   </Applications>
