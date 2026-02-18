@@ -1,21 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    
     <EnableMsixTooling>true</EnableMsixTooling>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
-    <AppxPackageSigningEnabled>true</AppxPackageSigningEnabled>
     <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
-    <EnableMsixTooling>true</EnableMsixTooling>
-    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <AppxPackageSigningEnabled>true</AppxPackageSigningEnabled>
-    <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <WindowsPackageType>MSIX</WindowsPackageType> 
+    <WindowsPackageType>MSIX</WindowsPackageType>
   </PropertyGroup>
 
   <ItemGroup>
@@ -33,6 +29,4 @@
       <SubType>Designer</SubType>
     </AppxManifest>
   </ItemGroup>
-
-
 </Project>
