@@ -37,8 +37,7 @@ jobs:
       - name: Build MSIX Package
         run: |
           # Use MSBuild to generate the MSIX Package
-          # Removed PublishSingleFile to prevent crash issues (Event 10.3)
-          # GenerateAppxPackageOnBuild=true triggers the packaging
+          # Explicitly set output directory for reliable artifact retrieval
           msbuild TypingApp.csproj /p:Configuration=Release /p:Platform=x64 `
             /p:WindowsPackageType=MSIX `
             /p:UapAppxPackageBuildMode=SideloadOnly `
@@ -47,18 +46,19 @@ jobs:
             /p:AppxPackageSigningEnabled=true `
             /p:PackageCertificateKeyFile="TypingCert.pfx" `
             /p:PackageCertificatePassword="TypingAppPassword" `
-            /p:OutputPath="bin\Release\"
+            /p:AppxPackageDir="${{ github.workspace }}\AppxOutput\"
 
       - name: List Build Outputs (Debug)
-        run: Get-ChildItem -Path bin\Release -Recurse
+        run: Get-ChildItem -Path "${{ github.workspace }}\AppxOutput" -Recurse
 
       - name: Create Release and Upload Asset
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            bin/Release/**/*.msixbundle
-            bin/Release/**/*.msix
+            ${{ github.workspace }}/AppxOutput/**/*.msixbundle
+            ${{ github.workspace }}/AppxOutput/**/*.msix
           generate_release_notes: true
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
