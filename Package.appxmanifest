@@ -6,9 +6,9 @@
   IgnorableNamespaces="uap rescap">
 
   <Identity
-    Name="Clipboard Typing"
-    Publisher="CN=양성우"
-    Version="1.0.0.0" />
+  Name="TypingClipboard" 
+  Publisher="CN=TypingApp"
+  Version="1.0.0.0" />
 
   <Properties>
     <DisplayName>Typing</DisplayName>
