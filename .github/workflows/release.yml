@@ -23,95 +23,57 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1
 
-      - name: Publish MSIX Package
+      # 1. 인증서 생성 (이 단계가 없으면 MSIX가 안 만들어집니다)
+      - name: Create Signing Certificate
         run: |
-          # Use dotnet publish as requested, with explicit MSIX properties
-          # We pass WindowsPackageType=MSIX to ensure the MSIX targets are invoked
-          dotnet publish TypingApp.csproj `
-            -c Release `
-            -r win-x64 `
-            --self-contained true `
-            -p:PublishSingleFile=false `
-            -p:WindowsPackageType=MSIX `
-            -p:AppxPackageSigningEnabled=true `
-            -p:PackageCertificateKeyFile="TypingCert.pfx" `
-            -p:PackageCertificatePassword="TypingAppPassword" `
-            -p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
-            -p:GenerateAppxPackageOnBuild=true `
-            -p:AppxBundle=Always `
-            -p:UapAppxPackageBuildMode=SideloadOnly
+          $cert = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" -Subject "CN=TypingApp" -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -Type CodeSigningCert
+          $pwd = ConvertTo-SecureString -String "TypingAppPassword" -Force -AsPlainText
+          Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
 
-      - name: List All Workspace Files (Debug)
+      # 2. MSIX 패키지 빌드 (가장 확실한 MSBuild 방식 사용)
+      - name: Build and Package MSIX
+        run: |
+          msbuild TypingApp.csproj `
+            /t:Publish `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:AppxPackageSigningEnabled=true `
+            /p:PackageCertificateKeyFile="TypingCert.pfx" `
+            /p:PackageCertificatePassword="TypingAppPassword" `
+            /p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
+            /p:GenerateAppxPackageOnBuild=true `
+            /p:AppxBundle=Always `
+            /p:UapAppxPackageBuildMode=SideloadOnly
+
+      # 3. 디버깅: 파일이 어디에 생겼는지 출력 (실패 시 확인용)
+      - name: List Files for Debugging
         if: always()
         run: |
-          # Debug: Recursively list all files to find where the MSIX went if it's missing
-          Get-ChildItem -Path . -Recurse -Filter "*.msix*" | Select-Object FullName
+          Write-Host "--- 작업 디렉토리 전체 파일 검색 ---"
+          Get-ChildItem -Path . -Recurse -Include *.msix, *.msixbundle, *.appxbundle | Select-Object FullName
 
+      # 4. 파일 수집 및 스테이징
       - name: Locate and Stage MSIX Files
         run: |
+          if (Test-Path "FinalOutput") { Remove-Item -Recurse -Force "FinalOutput" }
           New-Item -ItemType Directory -Force -Path "FinalOutput"
           
-          # Search in the explicit AppxPackages directory first
-          $searchPath = "${{ github.workspace }}\AppxPackages"
-          if (-not (Test-Path $searchPath)) {
-             Write-Host "AppxPackages path not found, searching entire workspace..."
-             $searchPath = "."
-          }
-
-          $files = Get-ChildItem -Path $searchPath -Recurse -Include *.msixbundle, *.msix, *.appxbundle | Where-Object { $_.FullName -notlike "*FinalOutput*" }
+          # AppxPackages 폴더 또는 전체 폴더에서 확장자 검색
+          $files = Get-ChildItem -Path . -Recurse -Include *.msixbundle, *.msix, *.appxbundle | Where-Object { $_.FullName -notmatch "obj|FinalOutput" }
           
           if ($files) {
               foreach ($f in $files) {
-                  Write-Host "Found artifact: $($f.FullName)"
+                  Write-Host "✅ 발견: $($f.FullName)"
                   Copy-Item $f.FullName -Destination "FinalOutput"
               }
           } else {
-              Write-Error "CRITICAL: No MSIX files found anywhere!"
+              Write-Error "❌ MSIX 파일을 찾을 수 없습니다. 빌드 설정을 확인하세요."
               exit 1
           }
 
-      - name: List All Workspace Files (Debug)
-        if: always()
-        run: |
-          # Debug: Recursively list all files to find where the MSIX went if it's missing
-          Get-ChildItem -Path . -Recurse -Filter "*.msix*" | Select-Object FullName
-
-      - name: Locate and Stage MSIX Files
-        run: |
-          New-Item -ItemType Directory -Force -Path "FinalOutput"
-          
-          # Search in the explicit AppxPackages directory first
-          $searchPath = "${{ github.workspace }}\AppxPackages"
-          if (-not (Test-Path $searchPath)) {
-             Write-Host "AppxPackages path not found, searching entire workspace..."
-             $searchPath = "."
-          }
-
-          $files = Get-ChildItem -Path $searchPath -Recurse -Include *.msixbundle, *.msix, *.appxbundle
-          
-          if ($files) {
-              foreach ($f in $files) {
-                  Write-Host "Found artifact: $($f.FullName)"
-                  Copy-Item $f.FullName -Destination "FinalOutput"
-              }
-          } else {
-              Write-Error "CRITICAL: No MSIX files found anywhere!"
-              exit 1
-          }
-          
-          if ($files) {
-              foreach ($f in $files) {
-                  Write-Host "Found artifact: $($f.FullName)"
-                  Copy-Item $f.FullName -Destination "FinalOutput"
-              }
-          } else {
-              Write-Error "No MSIX or MSIXBundle files found in output!"
-              exit 1
-          }
-
+      # 5. 릴리스 생성 및 업로드
       - name: Create Release and Upload Asset
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
             FinalOutput/*.msixbundle
