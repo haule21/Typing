@@ -24,35 +24,44 @@ jobs:
         uses: microsoft/setup-msbuild@v1
 
       - name: Restore dependencies
-        run: dotnet restore
-
-      - name: Create Signing Certificate
-        run: |
-          # Create Self-Signed Cert (Standard procedure for test/store association absent)
-          # Note: For real Store distribution, you may replace this with a valid Store certificate from Secrets.
-          $cert = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" -Subject "CN=TypingApp" -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -Type CodeSigningCert
-          $pwd = ConvertTo-SecureString -String "TypingAppPassword" -Force -AsPlainText
-          Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
-
-      - name: Prepare Output Directory
-        run: New-Item -ItemType Directory -Force -Path "MSIXOutput"
+        run: msbuild TypingApp.csproj /t:Restore /p:Configuration=Release
 
       - name: Build and Package MSIX
         run: |
-          # Use MSBuild /t:Build instead of Publish.
-          # Quote the target argument to prevent PowerShell from interpreting ';' as a command separator
-          msbuild TypingApp.csproj "/t:Restore;Build" `
+          # Use MSBuild /t:Build with specific MSIX properties
+          # Note: We rely on the CSPROJ 'Release' condition to set WindowsPackageType=MSIX
+          msbuild TypingApp.csproj /t:Build `
             /p:Configuration=Release `
             /p:Platform=x64 `
-            /p:WindowsPackageType=MSIX `
-            /p:GenerateAppxPackageOnBuild=true `
             /p:AppxPackageSigningEnabled=true `
             /p:PackageCertificateKeyFile="TypingCert.pfx" `
             /p:PackageCertificatePassword="TypingAppPassword" `
-            /p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
             /p:AppxBundle=Always `
             /p:UapAppxPackageBuildMode=SideloadOnly `
-            /p:Verbosity=normal
+            /p:Verbosity=detailed
+
+      - name: List All Workspace Files (Debug)
+        if: always()
+        run: |
+          # Debug: Recursively list all files to find where the MSIX went if it's missing
+          Get-ChildItem -Path . -Recurse -Filter "*.msix*" | Select-Object FullName
+
+      - name: Locate and Stage MSIX Files
+        run: |
+          New-Item -ItemType Directory -Force -Path "FinalOutput"
+          
+          # Scan entire workspace for the artifacts (MSBuild reliable default is AppxPackages/ but we scan all)
+          $files = Get-ChildItem -Path . -Recurse -Include *.msixbundle, *.msix, *.appxbundle | Where-Object { $_.FullName -notlike "*FinalOutput*" }
+          
+          if ($files) {
+              foreach ($f in $files) {
+                  Write-Host "Found artifact: $($f.FullName)"
+                  Copy-Item $f.FullName -Destination "FinalOutput"
+              }
+          } else {
+              Write-Error "CRITICAL: No MSIX files found anywhere!"
+              exit 1
+          }
 
       - name: List All Workspace Files (Debug)
         if: always()

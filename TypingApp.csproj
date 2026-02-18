@@ -10,6 +10,8 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <AppxPackageSigningEnabled>true</AppxPackageSigningEnabled>
     <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
+    <WindowsPackageType Condition="'$(Configuration)'=='Release'">MSIX</WindowsPackageType>
+    <WindowsPackageType Condition="'$(Configuration)'!='Release'">None</WindowsPackageType>
   </PropertyGroup>
 
   <ItemGroup>
