@@ -43,21 +43,36 @@ jobs:
             /p:UapAppxPackageBuildMode=SideloadOnly `
             /p:AppxBundle=Always `
             /p:GenerateAppxPackageOnBuild=true `
-            /p:AppxPackageSigningEnabled=true `
             /p:PackageCertificateKeyFile="TypingCert.pfx" `
             /p:PackageCertificatePassword="TypingAppPassword" `
-            /p:AppxPackageDir="AppxPackages\\"
+            /p:OutputPath="bin\Release\"
 
-      - name: List Build Outputs (Debug)
-        run: Get-ChildItem -Path AppxPackages -Recurse
+      - name: Locate and Stage MSIX Files
+        run: |
+          # Create a staging directory
+          New-Item -ItemType Directory -Force -Path "FinalOutput"
+          
+          # Find any MSIX or Bundle files in the build output
+          $files = Get-ChildItem -Path "bin" -Recurse -Include *.msixbundle, *.msix
+          
+          if ($files) {
+              foreach ($f in $files) {
+                  Write-Host "Found artifact: $($f.FullName)"
+                  Copy-Item $f.FullName -Destination "FinalOutput"
+              }
+          } else {
+              Write-Error "No MSIX or MSIXBundle files found in bin folder!"
+              Get-ChildItem -Path "bin" -Recurse # Debug listing
+              exit 1
+          }
 
       - name: Create Release and Upload Asset
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            AppxPackages/**/*.msixbundle
-            AppxPackages/**/*.msix
+            FinalOutput/*.msixbundle
+            FinalOutput/*.msix
           generate_release_notes: true
           fail_on_unmatched_files: true
         env:
