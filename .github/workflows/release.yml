@@ -39,7 +39,8 @@ jobs:
 
       - name: Build and Package MSIX
         run: |
-          # Use dotnet publish with relative output path to avoid matching issues
+          # Use dotnet publish with specific MSIX properties
+          # WindowsPackageType=MSIX is CRITICAL to trigger packaging
           dotnet publish TypingApp.csproj `
             -c Release `
             -r win-x64 `
@@ -48,19 +49,18 @@ jobs:
             -p:PackageCertificateKeyFile="TypingCert.pfx" `
             -p:PackageCertificatePassword="TypingAppPassword" `
             --self-contained true `
-            -p:AppxPackageDir="MSIXOutput\\" `
+            -p:WindowsPackageType=MSIX `
+            -p:UapAppxPackageBuildMode=SideloadOnly `
             -p:AppxBundle=Always `
             -v normal
-
-      - name: List Build Outputs (Debug)
-        run: Get-ChildItem -Path "MSIXOutput" -Recurse
 
       - name: Locate and Stage MSIX Files
         run: |
           New-Item -ItemType Directory -Force -Path "FinalOutput"
           
-          # Find generated files in the specific output directory
-          $files = Get-ChildItem -Path "MSIXOutput" -Recurse -Include *.msixbundle, *.msix, *.appxbundle
+          # Search recursively in the bin directory (Default output location)
+          # This avoids path matching issues with custom AppxPackageDir
+          $files = Get-ChildItem -Path "bin" -Recurse -Include *.msixbundle, *.msix, *.appxbundle
           
           if ($files) {
               foreach ($f in $files) {
@@ -68,7 +68,7 @@ jobs:
                   Copy-Item $f.FullName -Destination "FinalOutput"
               }
           } else {
-              Write-Error "No MSIX files found in MSIXOutput!"
+              Write-Error "No MSIX files found in bin directory!"
               Get-ChildItem -Path . -Recurse | Select-Object FullName # Fallback debug
               exit 1
           }
