@@ -24,28 +24,35 @@ jobs:
         uses: microsoft/setup-msbuild@v1
 
       - name: Create and Import Signing Certificate
+        id: create_cert
         run: |
-          # 1. 인증서 생성
-          $cert = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" -Subject "CN=TypingApp" -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -Type CodeSigningCert
+          # 1. 인증서 생성 및 저장소 설치
           $pwd = ConvertTo-SecureString -String "TypingAppPassword" -Force -AsPlainText
+          $cert = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" `
+                    -Subject "CN=TypingApp" `
+                    -KeyAlgorithm RSA -KeyLength 2048 `
+                    -HashAlgorithm SHA256 -Type CodeSigningCert
           
-          # 2. 파일로 내보내기
-          Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
-          
-          # 3. 인증서 저장소에 설치 (중요: 이 과정이 있어야 서명 에러가 사라집니다)
-          Import-PfxCertificate -FilePath "TypingCert.pfx" -CertStoreLocation Cert:\CurrentUser\My -Password $pwd
-          Import-PfxCertificate -FilePath "TypingCert.pfx" -CertStoreLocation Cert:\CurrentUser\TrustedPeople -Password $pwd
+          # 2. 신뢰할 수 있는 피플 저장소에도 복사 (패키징 승인용)
+          $store = New-Object System.Security.Cryptography.X509Certificates.X509Store("TrustedPeople", "CurrentUser")
+          $store.Open("ReadWrite")
+          $store.Add($cert)
+          $store.Close()
+
+          # 3. 인증서 지문(Thumbprint)을 환경 변수로 저장
+          echo "CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+          Write-Host "✅ Certificate created with Thumbprint: $($cert.Thumbprint)"
 
       - name: Build and Package MSIX
         run: |
-          # 인증서가 저장소에 있으므로 MSBuild가 자동으로 찾아 사용합니다.
+          # 파일 경로 대신 /p:PackageCertificateThumbprint 를 사용합니다.
+          # 이 방식은 비밀번호 입력이 필요 없어 APPX0105 에러를 원천 차단합니다.
           dotnet publish TypingApp.csproj `
             -c Release `
             -r win-x64 `
             -p:PublishAppxPackage=true `
             -p:AppxPackageSigningEnabled=true `
-            -p:PackageCertificateKeyFile="TypingCert.pfx" `
-            -p:PackageCertificatePassword="TypingAppPassword" `
+            -p:PackageCertificateThumbprint="${{ env.CERT_THUMBPRINT }}" `
             -p:AppxPackageDir=".\AppxPackages\" `
             -p:AppxBundle=Always `
             --self-contained true
