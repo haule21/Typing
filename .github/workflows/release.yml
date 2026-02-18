@@ -36,6 +36,7 @@ jobs:
             /p:AppxPackageSigningEnabled=true `
             /p:PackageCertificateKeyFile="TypingCert.pfx" `
             /p:PackageCertificatePassword="TypingAppPassword" `
+            /p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
             /p:AppxBundle=Always `
             /p:UapAppxPackageBuildMode=SideloadOnly `
             /p:Verbosity=detailed
