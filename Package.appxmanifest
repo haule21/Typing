@@ -11,7 +11,7 @@
   Version="1.0.0.0" />
 
   <Properties>
-    <DisplayName>Typing</DisplayName>
+    <DisplayName>Clipboard Typing</DisplayName>
     <PublisherDisplayName>양성우</PublisherDisplayName>
     <Logo>Resources/StoreLogo.png</Logo>
   </Properties>
@@ -30,7 +30,7 @@
       Executable="TypingApp.exe"
       EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-        DisplayName="Typing"
+        DisplayName="Clipboard Typing"
         Description="Clipboard to Typing Utility"
         BackgroundColor="transparent"
         Square150x150Logo="Resources/Square150x150Logo.png"
