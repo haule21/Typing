@@ -34,10 +34,14 @@ jobs:
           $pwd = ConvertTo-SecureString -String "TypingAppPassword" -Force -AsPlainText
           Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
 
+      - name: Prepare Output Directory
+        run: New-Item -ItemType Directory -Force -Path "output"
+
       - name: Build and Package MSIX
         run: |
           # msbuild 대신 dotnet publish를 사용합니다.
           # -p:PublishAppxPackage=true 옵션이 MSIX 생성을 트리거합니다.
+          # MSIX 빌드 결과물을 output 폴더로 모읍니다.
           dotnet publish TypingApp.csproj `
             -c Release `
             -r win-x64 `
@@ -46,20 +50,20 @@ jobs:
             -p:PackageCertificateKeyFile="TypingCert.pfx" `
             -p:PackageCertificatePassword="TypingAppPassword" `
             --self-contained true `
-            -p:AppxPackageDir="D:\a\output\" `
+            -p:AppxPackageDir="${{ github.workspace }}\output\\" `
             -p:AppxBundle=Always
 
       - name: List All Files (Debug)
         run: |
           # 파일이 정말 생성되었는지 구조를 확인합니다.
-          Get-ChildItem -Path D:\a\output -Recurse
+          Get-ChildItem -Path "output" -Recurse
 
       - name: Locate and Stage MSIX Files
         run: |
           New-Item -ItemType Directory -Force -Path "FinalOutput"
           
-          # D:\a\output 폴더 내에서 생성된 msix 또는 msixbundle을 찾습니다.
-          $files = Get-ChildItem -Path "D:\a\output" -Recurse -Include *.msixbundle, *.msix, *.appxbundle
+          # output 폴더 내에서 생성된 msix 또는 msixbundle을 찾습니다.
+          $files = Get-ChildItem -Path "output" -Recurse -Include *.msixbundle, *.msix, *.appxbundle
           
           if ($files) {
               foreach ($f in $files) {
@@ -67,7 +71,7 @@ jobs:
                   Copy-Item $f.FullName -Destination "FinalOutput"
               }
           } else {
-              Write-Error "No MSIX or MSIXBundle files found in D:\a\output!"
+              Write-Error "No MSIX or MSIXBundle files found in output!"
               exit 1
           }
 
