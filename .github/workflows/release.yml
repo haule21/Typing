@@ -39,28 +39,39 @@ jobs:
 
       - name: Build and Package MSIX
         run: |
-          # Use dotnet publish with specific MSIX properties
-          # WindowsPackageType=MSIX is CRITICAL to trigger packaging
-          dotnet publish TypingApp.csproj `
-            -c Release `
-            -r win-x64 `
-            -p:PublishAppxPackage=true `
-            -p:AppxPackageSigningEnabled=true `
-            -p:PackageCertificateKeyFile="TypingCert.pfx" `
-            -p:PackageCertificatePassword="TypingAppPassword" `
-            --self-contained true `
-            -p:WindowsPackageType=MSIX `
-            -p:UapAppxPackageBuildMode=SideloadOnly `
-            -p:AppxBundle=Always `
-            -v normal
+          # Use MSBuild /t:Publish which is more reliable for Single-Project MSIX
+          # We explicitly set AppxPackageDir to a known workspace path
+          msbuild TypingApp.csproj /restore /t:Publish `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:WindowsPackageType=MSIX `
+            /p:PublishAppxPackage=true `
+            /p:AppxPackageSigningEnabled=true `
+            /p:PackageCertificateKeyFile="TypingCert.pfx" `
+            /p:PackageCertificatePassword="TypingAppPassword" `
+            /p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
+            /p:GenerateAppxPackageOnBuild=true `
+            /p:AppxBundle=Always `
+            /p:UapAppxPackageBuildMode=SideloadOnly
+
+      - name: List All Workspace Files (Debug)
+        if: always()
+        run: |
+          # Debug: Recursively list all files to find where the MSIX went if it's missing
+          Get-ChildItem -Path . -Recurse -Filter "*.msix*" | Select-Object FullName
 
       - name: Locate and Stage MSIX Files
         run: |
           New-Item -ItemType Directory -Force -Path "FinalOutput"
           
-          # Search recursively in the bin directory (Default output location)
-          # This avoids path matching issues with custom AppxPackageDir
-          $files = Get-ChildItem -Path "bin" -Recurse -Include *.msixbundle, *.msix, *.appxbundle
+          # Search in the explicit AppxPackages directory first
+          $searchPath = "${{ github.workspace }}\AppxPackages"
+          if (-not (Test-Path $searchPath)) {
+             Write-Host "AppxPackages path not found, searching entire workspace..."
+             $searchPath = "."
+          }
+
+          $files = Get-ChildItem -Path $searchPath -Recurse -Include *.msixbundle, *.msix, *.appxbundle
           
           if ($files) {
               foreach ($f in $files) {
@@ -68,8 +79,7 @@ jobs:
                   Copy-Item $f.FullName -Destination "FinalOutput"
               }
           } else {
-              Write-Error "No MSIX files found in bin directory!"
-              Get-ChildItem -Path . -Recurse | Select-Object FullName # Fallback debug
+              Write-Error "CRITICAL: No MSIX files found anywhere!"
               exit 1
           }
           
