@@ -39,20 +39,20 @@ jobs:
 
       - name: Build and Package MSIX
         run: |
-          # Use MSBuild /t:Publish which is more reliable for Single-Project MSIX
-          # We explicitly set AppxPackageDir to a known workspace path
-          msbuild TypingApp.csproj /restore /t:Publish `
+          # Use MSBuild /t:Build instead of Publish.
+          # Single-project MSIX logic hangs off the 'Build' target, not 'Publish'.
+          msbuild TypingApp.csproj /t:Restore;Build `
             /p:Configuration=Release `
             /p:Platform=x64 `
             /p:WindowsPackageType=MSIX `
-            /p:PublishAppxPackage=true `
+            /p:GenerateAppxPackageOnBuild=true `
             /p:AppxPackageSigningEnabled=true `
             /p:PackageCertificateKeyFile="TypingCert.pfx" `
             /p:PackageCertificatePassword="TypingAppPassword" `
             /p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
-            /p:GenerateAppxPackageOnBuild=true `
             /p:AppxBundle=Always `
-            /p:UapAppxPackageBuildMode=SideloadOnly
+            /p:UapAppxPackageBuildMode=SideloadOnly `
+            /p:Verbosity=normal
 
       - name: List All Workspace Files (Debug)
         if: always()
