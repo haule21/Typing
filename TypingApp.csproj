@@ -15,8 +15,7 @@
     <AppxPackageSigningEnabled>true</AppxPackageSigningEnabled>
     <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <WindowsPackageType>MSIX</WindowsPackageType>
-    <AssetTargetFallback>$(AssetTargetFallback);net9.0-windows10.0.19041.0</AssetTargetFallback>
+    <WindowsPackageType>MSIX</WindowsPackageType> 
   </PropertyGroup>
 
   <ItemGroup>

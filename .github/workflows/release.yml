@@ -33,22 +33,17 @@ jobs:
       # 2. MSIX 패키지 빌드 (msbuild /restore 사용하여 Assets 파일 에러 해결)
       - name: Build and Package MSIX
         run: |
-          # msbuild를 사용하여 MSIX 패키징 타겟을 명시적으로 호출합니다.
-          # /p:PublishAppxPackage=true 가 MSIX 생성을 결정짓는 핵심 플래그입니다.
-          msbuild TypingApp.csproj `
-            /t:Build `
-            /restore `
-            /p:Configuration=Release `
-            /p:Platform=x64 `
-            /p:RuntimeIdentifier=win-x64 `
-            /p:PublishAppxPackage=true `
-            /p:AppxPackageSigningEnabled=true `
-            /p:PackageCertificateKeyFile="TypingCert.pfx" `
-            /p:PackageCertificatePassword="TypingAppPassword" `
-            /p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
-            /p:GenerateAppxPackageOnBuild=true `
-            /p:AppxBundle=Always `
-            /p:UapAppxPackageBuildMode=SideloadOnly
+          # dotnet publish를 사용하여 MSIX 패키징 타겟을 '강제로' 실행합니다.
+          dotnet publish TypingApp.csproj `
+            -c Release `
+            -r win-x64 `
+            -p:PublishAppxPackage=true `
+            -p:AppxPackageSigningEnabled=true `
+            -p:PackageCertificateKeyFile="TypingCert.pfx" `
+            -p:PackageCertificatePassword="TypingAppPassword" `
+            -p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
+            -p:AppxBundle=Always `
+            --self-contained true
 
       # 3. 디버깅용 파일 리스트 출력 (파일을 못 찾을 경우 로그 확인용)
       - name: Debug - List All Workspace Files
@@ -60,19 +55,25 @@ jobs:
       # 4. 파일 수집 및 스테이징
       - name: Locate and Stage MSIX Files
         run: |
-          if (Test-Path "FinalOutput") { Remove-Item -Recurse -Force "FinalOutput" }
           New-Item -ItemType Directory -Force -Path "FinalOutput"
           
-          # 하위 폴더 깊숙이 있는 패키지까지 모두 검색
-          $files = Get-ChildItem -Path . -Recurse -Include *.msixbundle, *.msix, *.appxbundle | Where-Object { $_.FullName -notmatch "obj|FinalOutput|_Test" }
+          # 1. 먼저 명시적인 경로에서 검색
+          $searchPaths = @("${{ github.workspace }}\AppxPackages", ".")
           
-          if ($files) {
-              foreach ($f in $files) {
-                  Write-Host "✅ 발견된 아티팩트: $($f.FullName)"
-                  Copy-Item $f.FullName -Destination "FinalOutput"
+          foreach ($path in $searchPaths) {
+              Write-Host "Searching in: $path"
+              $found = Get-ChildItem -Path $path -Recurse -Include *.msixbundle, *.msix, *.appxbundle | Where-Object { $_.FullName -notmatch "obj|FinalOutput|_Test" }
+              if ($found) {
+                  $found | ForEach-Object {
+                      Write-Host "✅ 패키지 발견: $($_.FullName)"
+                      Copy-Item $_.FullName -Destination "FinalOutput"
+                  }
+                  $hasFiles = $true
               }
-          } else {
-              Write-Error "❌ MSIX 파일을 찾을 수 없습니다. 빌드 로그의 에러 메시지를 확인해주세요."
+          }
+          
+          if (-not $hasFiles) {
+              Write-Error "❌ 빌드는 성공했으나 MSIX 파일이 생성되지 않았습니다. 로그에서 'Appx' 관련 타겟이 실행되었는지 확인하세요."
               exit 1
           }
 
