@@ -35,13 +35,11 @@ jobs:
           Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
 
       - name: Prepare Output Directory
-        run: New-Item -ItemType Directory -Force -Path "output"
+        run: New-Item -ItemType Directory -Force -Path "MSIXOutput"
 
       - name: Build and Package MSIX
         run: |
-          # msbuild 대신 dotnet publish를 사용합니다.
-          # -p:PublishAppxPackage=true 옵션이 MSIX 생성을 트리거합니다.
-          # MSIX 빌드 결과물을 output 폴더로 모읍니다.
+          # Use dotnet publish with relative output path to avoid matching issues
           dotnet publish TypingApp.csproj `
             -c Release `
             -r win-x64 `
@@ -50,20 +48,30 @@ jobs:
             -p:PackageCertificateKeyFile="TypingCert.pfx" `
             -p:PackageCertificatePassword="TypingAppPassword" `
             --self-contained true `
-            -p:AppxPackageDir="${{ github.workspace }}\output\\" `
-            -p:AppxBundle=Always
+            -p:AppxPackageDir="MSIXOutput\\" `
+            -p:AppxBundle=Always `
+            -v normal
 
-      - name: List All Files (Debug)
-        run: |
-          # 파일이 정말 생성되었는지 구조를 확인합니다.
-          Get-ChildItem -Path "output" -Recurse
+      - name: List Build Outputs (Debug)
+        run: Get-ChildItem -Path "MSIXOutput" -Recurse
 
       - name: Locate and Stage MSIX Files
         run: |
           New-Item -ItemType Directory -Force -Path "FinalOutput"
           
-          # output 폴더 내에서 생성된 msix 또는 msixbundle을 찾습니다.
-          $files = Get-ChildItem -Path "output" -Recurse -Include *.msixbundle, *.msix, *.appxbundle
+          # Find generated files in the specific output directory
+          $files = Get-ChildItem -Path "MSIXOutput" -Recurse -Include *.msixbundle, *.msix, *.appxbundle
+          
+          if ($files) {
+              foreach ($f in $files) {
+                  Write-Host "Found artifact: $($f.FullName)"
+                  Copy-Item $f.FullName -Destination "FinalOutput"
+              }
+          } else {
+              Write-Error "No MSIX files found in MSIXOutput!"
+              Get-ChildItem -Path . -Recurse | Select-Object FullName # Fallback debug
+              exit 1
+          }
           
           if ($files) {
               foreach ($f in $files) {
