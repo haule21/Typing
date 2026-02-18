@@ -90,3 +90,12 @@ jobs:
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 기존 Release 업로드 단계 이후에 추가
+      - name: Deploy MSIX to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./FinalOutput
+          destination_dir: download  # https://haule21.github.io/Typing/download/ 위치에 저장됨
+          keep_files: true           # 기존 버전 파일들을 삭제하지 않고 유지
