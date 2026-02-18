@@ -33,19 +33,18 @@ jobs:
       # 2. MSIX 패키지 빌드 (msbuild /restore 사용하여 Assets 파일 에러 해결)
       - name: Build and Package MSIX
         run: |
-          # /p:PublishAppxPackage=true 가 MSIX 생성을 트리거하는 '마법의 옵션'입니다.
-          # /p:AppxPackageDir 경로 끝에 반드시 역슬래시 두 개(\\)를 붙여주세요.
-          msbuild TypingApp.csproj `
-            /t:Build `
-            /restore `
-            /p:Configuration=Release `
-            /p:Platform=x64 `
-            /p:PublishAppxPackage=true `
-            /p:AppxPackageSigningEnabled=true `
-            /p:PackageCertificateKeyFile="TypingCert.pfx" `
-            /p:PackageCertificatePassword="TypingAppPassword" `
-            /p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
-            /p:AppxBundle=Always
+          # dotnet publish를 사용하여 MSIX 패키징 타겟을 트리거합니다.
+          # 빌드 결과물은 자동으로 .\AppxPackages 폴더에 생성됩니다.
+          dotnet publish TypingApp.csproj `
+            -c Release `
+            -r win-x64 `
+            -p:PublishAppxPackage=true `
+            -p:AppxPackageSigningEnabled=true `
+            -p:PackageCertificateKeyFile="TypingCert.pfx" `
+            -p:PackageCertificatePassword="TypingAppPassword" `
+            -p:AppxPackageDir=".\AppxPackages\" `
+            -p:AppxBundle=Always `
+            --self-contained true
 
       - name: Locate and Stage MSIX Files
         run: |
