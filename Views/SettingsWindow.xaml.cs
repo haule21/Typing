@@ -17,6 +17,17 @@ namespace TypingApp.Views
             InitializeComponent();
             _config = config;
 
+            // Set Icon dynamically to avoid XamlParseException with MSIX packaged environments
+            string iconPath = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "Resources", "TypingClipboard v0.1.png");
+            if (System.IO.File.Exists(iconPath))
+            {
+                this.Icon = new System.Windows.Media.Imaging.BitmapImage(new System.Uri(iconPath));
+            }
+            else
+            {
+                this.Icon = new System.Windows.Media.Imaging.BitmapImage(new System.Uri("pack://application:,,,/Resources/TypingClipboard v0.1.png"));
+            }
+
             txtDelay.Text = _config.TypingDelay.ToString();
             UpdateHotkeyDisplay(_config.PasteHotkey.Key, _config.PasteHotkey.Modifiers);
 
