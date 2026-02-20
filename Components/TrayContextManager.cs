@@ -23,7 +23,19 @@ namespace TypingApp.Components
             _clipboardManager = new ClipboardManager();
 
             _notifyIcon = new TaskbarIcon();
-            _notifyIcon.IconSource = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/Resources/TypingClipboard v0.1.png"));
+
+            // AppDomain.CurrentDomain.BaseDirectory works consistently for Content files copied to output directory
+            string iconPath = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "Resources", "TypingClipboard v0.1.png");
+            if (System.IO.File.Exists(iconPath))
+            {
+                _notifyIcon.IconSource = new System.Windows.Media.Imaging.BitmapImage(new Uri(iconPath));
+            }
+            else
+            {
+                // Fallback to pack URI if it was embedded as a Resource
+                _notifyIcon.IconSource = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/Resources/TypingClipboard v0.1.png"));
+            }
+
             _notifyIcon.ToolTipText = "Typing v0.1";
 
             var contextMenu = new ContextMenu();
