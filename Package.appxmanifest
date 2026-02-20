@@ -8,7 +8,7 @@
   <Identity
   Name="001B18BB.ClipboardTyping" 
   Publisher="CN=DF735157-E81C-4F4F-BDCF-67A5922C37B1"
-  Version="1.0.0.0" />
+  Version="1.0.0.1" />
 
   <Properties>
     <DisplayName>Clipboard Typing</DisplayName>
