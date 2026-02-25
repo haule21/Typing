@@ -6,6 +6,13 @@ namespace TypingApp.Services
 {
     public class InputSimulator : ITypingEngine
     {
+        private readonly Models.ConfigStore _configStore;
+
+        public InputSimulator(Models.ConfigStore configStore)
+        {
+            _configStore = configStore;
+        }
+
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
@@ -90,6 +97,20 @@ namespace TypingApp.Services
 
         public async Task TypeTextAsync(string text, int delayMilliseconds = 0)
         {
+            if (string.IsNullOrEmpty(text)) return;
+
+            if (_configStore != null)
+            {
+                if (_configStore.Current.IgnoreTabs)
+                {
+                    text = text.Replace("\t", "");
+                }
+                if (_configStore.Current.IgnoreNewlines)
+                {
+                    text = text.Replace("\r", "").Replace("\n", "");
+                }
+            }
+
             if (string.IsNullOrEmpty(text)) return;
 
             foreach (char c in text)

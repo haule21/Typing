@@ -31,6 +31,10 @@ namespace TypingApp.Views
             txtDelay.Text = _config.TypingDelay.ToString();
             UpdateHotkeyDisplay(_config.PasteHotkey.Key, _config.PasteHotkey.Modifiers);
 
+            chkIgnoreTabs.IsChecked = _config.IgnoreTabs;
+            chkIgnoreNewlines.IsChecked = _config.IgnoreNewlines;
+            txtExecutionDelay.Text = _config.ExecutionDelaySeconds.ToString();
+
             _newKey = _config.PasteHotkey.Key;
             _newModifiers = _config.PasteHotkey.Modifiers;
 
@@ -84,6 +88,14 @@ namespace TypingApp.Views
 
             _config.PasteHotkey.Key = _newKey;
             _config.PasteHotkey.Modifiers = _newModifiers;
+
+            _config.IgnoreTabs = chkIgnoreTabs.IsChecked ?? false;
+            _config.IgnoreNewlines = chkIgnoreNewlines.IsChecked ?? false;
+            if (int.TryParse(txtExecutionDelay.Text, out int execDelay))
+            {
+                // Clamp between 0 and 10
+                _config.ExecutionDelaySeconds = System.Math.Clamp(execDelay, 0, 10);
+            }
 
             DialogResult = true;
             Close();

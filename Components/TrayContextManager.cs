@@ -53,7 +53,7 @@ namespace TypingApp.Components
             _hotkeyListener = new HotkeyListener();
             _hotkeyListener.UpdateHotkey(_configStore.Current.PasteHotkey.Key, _configStore.Current.PasteHotkey.Modifiers);
 
-            _inputSimulator = new InputSimulator();
+            _inputSimulator = new InputSimulator(_configStore);
             _hotkeyListener.OnPasteHotkeyDetected += HandlePaste;
         }
 
@@ -63,6 +63,12 @@ namespace TypingApp.Components
 
             if (!string.IsNullOrEmpty(text))
             {
+                if (_configStore.Current.ExecutionDelaySeconds > 0)
+                {
+                    var overlay = new CountdownOverlay();
+                    await overlay.StartCountdownAsync(_configStore.Current.ExecutionDelaySeconds);
+                }
+
                 await _inputSimulator.EnsureModifiersUpAsync();
                 await _inputSimulator.TypeTextAsync(text, _configStore.Current.TypingDelay);
             }

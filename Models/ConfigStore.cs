@@ -8,11 +8,15 @@ namespace TypingApp.Models
     public class AppConfig
     {
         public int TypingDelay { get; set; } = 10;
-        public HotkeyConfig PasteHotkey { get; set; } = new HotkeyConfig 
-        { 
-            Key = Key.V, 
-            Modifiers = ModifierKeys.Control | ModifierKeys.Shift 
+        public HotkeyConfig PasteHotkey { get; set; } = new HotkeyConfig
+        {
+            Key = Key.V,
+            Modifiers = ModifierKeys.Control | ModifierKeys.Shift
         };
+
+        public bool IgnoreTabs { get; set; } = false;
+        public bool IgnoreNewlines { get; set; } = false;
+        public int ExecutionDelaySeconds { get; set; } = 0;
     }
 
     public class HotkeyConfig
