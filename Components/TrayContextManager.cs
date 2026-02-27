@@ -40,11 +40,11 @@ namespace TypingApp.Components
 
             var contextMenu = new ContextMenu();
 
-            var settingsItem = new MenuItem { Header = "설정" };
+            var settingsItem = new MenuItem { Header = "Settings" };
             settingsItem.Click += (s, e) => OpenSettings();
             contextMenu.Items.Add(settingsItem);
 
-            var exitItem = new MenuItem { Header = "종료" };
+            var exitItem = new MenuItem { Header = "Exit" };
             exitItem.Click += (s, e) => Application.Current.Shutdown();
             contextMenu.Items.Add(exitItem);
 
