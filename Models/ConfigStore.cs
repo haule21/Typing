@@ -27,7 +27,19 @@ namespace TypingApp.Models
 
     public class ConfigStore
     {
-        private static string ConfigPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
+        private static string ConfigPath
+        {
+            get
+            {
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string appFolder = Path.Combine(appData, "TypingApp");
+                if (!Directory.Exists(appFolder))
+                {
+                    Directory.CreateDirectory(appFolder);
+                }
+                return Path.Combine(appFolder, "config.json");
+            }
+        }
 
         public AppConfig Current { get; private set; }
 
