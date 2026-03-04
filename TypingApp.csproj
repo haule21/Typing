@@ -7,9 +7,9 @@
     <UseWPF>true</UseWPF>
     
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <Version>1.0.2.0</Version>
-    <FileVersion>1.0.2.0</FileVersion>
-    <AssemblyVersion>1.0.2.0</AssemblyVersion>
+    <Version>1.0.3.0</Version>
+    <FileVersion>1.0.3.0</FileVersion>
+    <AssemblyVersion>1.0.3.0</AssemblyVersion>
     <NoWarn>$(NoWarn);MSB3277;NU1603</NoWarn>
   </PropertyGroup>
 
