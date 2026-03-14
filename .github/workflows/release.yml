@@ -42,15 +42,17 @@ jobs:
 
       - name: Build and Package MSIX
         run: |
-          dotnet publish TypingApp.csproj `
-            -c Release `
-            -r win-x64 `
-            -p:PublishAppxPackage=true `
-            -p:AppxPackageSigningEnabled=true `
-            -p:PackageCertificateThumbprint="${{ env.CERT_THUMBPRINT }}" `
-            -p:AppxPackageDir=".\AppxPackages\" `
-            -p:AppxBundle=Always `
-            --self-contained false  # 자가 포함 빌드 중단
+          msbuild TypingApp.csproj `
+            /restore `
+            /t:Build `
+            /p:Configuration=Release `
+            /p:RuntimeIdentifier=win-x64 `
+            /p:PublishAppxPackage=true `
+            /p:AppxPackageSigningEnabled=true `
+            /p:PackageCertificateThumbprint="${{ env.CERT_THUMBPRINT }}" `
+            /p:AppxPackageDir=".\AppxPackages\" `
+            /p:AppxBundle=Always `
+            /p:SelfContained=false
 
       - name: Locate and Stage MSIX Files
         run: |
