@@ -44,12 +44,11 @@ jobs:
         run: |
           msbuild TypingApp.csproj `
             /restore `
-            /t:Build `
+            /t:Publish `
             /p:Configuration=Release `
             /p:Platform=x64 `
             /p:RuntimeIdentifier=win-x64 `
             /p:PublishAppxPackage=true `
-            /p:GenerateAppxPackageOnBuild=true `
             /p:AppxPackageSigningEnabled=true `
             /p:PackageCertificateThumbprint="${{ env.CERT_THUMBPRINT }}" `
             /p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
@@ -60,8 +59,9 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path "FinalOutput"
           
-          # 아까 로그에서 확인된 위치까지 포함하여 검색 (Recurse)
-          $files = Get-ChildItem -Path . -Recurse -Include *.msix, *.msixbundle, *.appxbundle | Where-Object { $_.FullName -notmatch "obj|FinalOutput" }
+          $searchPath = "${{ github.workspace }}\AppxPackages"
+          Write-Host "Searching for packages in $searchPath"
+          $files = Get-ChildItem -Path $searchPath -Recurse -Include *.msix, *.msixbundle, *.appxbundle | Where-Object { $_.FullName -notmatch "_Test" }
           
           if ($files) {
               foreach ($f in $files) {
@@ -69,7 +69,7 @@ jobs:
                   Copy-Item $f.FullName -Destination "FinalOutput"
               }
           } else {
-              Write-Error "❌ 패키지 파일을 찾을 수 없습니다."
+              Write-Error "❌ 패키지 파일을 찾을 수 없습니다. '$searchPath' 디렉토리를 확인하세요."
               exit 1
           }
 
