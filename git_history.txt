@@ -1,0 +1,761 @@
+﻿commit 17a7da1ee7e43bd619a39868f039330c4dea47d1
+Author: haule21 <sungwoo232@gmail.com>
+Date:   Sat Mar 14 15:39:40 2026 +0900
+
+    Use msbuild instead of dotnet publish to bypass MSB4018 CAS bug on .NET 9
+
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index bfda00d..67bb4ea 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -42,15 +42,17 @@ jobs:
+ 
+       - name: Build and Package MSIX
+         run: |
+-          dotnet publish TypingApp.csproj `
+-            -c Release `
+-            -r win-x64 `
+-            -p:PublishAppxPackage=true `
+-            -p:AppxPackageSigningEnabled=true `
+-            -p:PackageCertificateThumbprint="${{ env.CERT_THUMBPRINT }}" `
+-            -p:AppxPackageDir=".\AppxPackages\" `
+-            -p:AppxBundle=Always `
+-            --self-contained false  # ?먭? ?ы븿 鍮뚮뱶 以묐떒
++          msbuild TypingApp.csproj `
++            /restore `
++            /t:Build `
++            /p:Configuration=Release `
++            /p:RuntimeIdentifier=win-x64 `
++            /p:PublishAppxPackage=true `
++            /p:AppxPackageSigningEnabled=true `
++            /p:PackageCertificateThumbprint="${{ env.CERT_THUMBPRINT }}" `
++            /p:AppxPackageDir=".\AppxPackages\" `
++            /p:AppxBundle=Always `
++            /p:SelfContained=false
+ 
+       - name: Locate and Stage MSIX Files
+         run: |
+
+commit dd06e76cb17118e6ca48729626c61223bcf48323
+Author: haule21 <sungwoo232@gmail.com>
+Date:   Wed Feb 18 20:56:27 2026 +0900
+
+    Update Manifest & Cert Subject with official Store Identity
+
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 8cf7ce5..bfda00d 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -26,20 +26,17 @@ jobs:
+       - name: Create and Import Signing Certificate
+         id: create_cert
+         run: |
+-          # 1. ?몄쬆???앹꽦 諛???μ냼 ?ㅼ튂
+           $pwd = ConvertTo-SecureString -String "TypingAppPassword" -Force -AsPlainText
+           $cert = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" `
+-                    -Subject "CN=TypingApp" `
++                    -Subject "CN=DF735157-E81C-4F4F-BDCF-67A5922C37B1" `
+                     -KeyAlgorithm RSA -KeyLength 2048 `
+                     -HashAlgorithm SHA256 -Type CodeSigningCert
+           
+-          # 2. ?좊ː?????덈뒗 ?쇳뵆 ??μ냼?먮룄 蹂듭궗 (?⑦궎吏??뱀씤??
+           $store = New-Object System.Security.Cryptography.X509Certificates.X509Store("TrustedPeople", "CurrentUser")
+           $store.Open("ReadWrite")
+           $store.Add($cert)
+           $store.Close()
+ 
+-          # 3. ?몄쬆??吏臾?Thumbprint)???섍꼍 蹂?섎줈 ???           echo "CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+           Write-Host "??Certificate created with Thumbprint: $($cert.Thumbprint)"
+ 
+
+commit e13bd6cc476fbc84926203c1b53ff6ef0652e306
+Author: haule21 <sungwoo232@gmail.com>
+Date:   Wed Feb 18 20:23:23 2026 +0900
+
+    Enhance release: Deploy artifacts to versioned folder in GitHub Pages
+
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 3768e9e..8cf7ce5 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -89,11 +89,13 @@ jobs:
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ 
+-      # 湲곗〈 Release ?낅줈???④퀎 ?댄썑??異붽?
+       - name: Deploy MSIX to GitHub Pages
+         uses: peaceiris/actions-gh-pages@v3
+         with:
+           github_token: ${{ secrets.GITHUB_TOKEN }}
+           publish_dir: ./FinalOutput
+-          destination_dir: download  # https://haule21.github.io/Typing/download/ ?꾩튂????λ맖
+-          keep_files: true           # 湲곗〈 踰꾩쟾 ?뚯씪?ㅼ쓣 ??젣?섏? ?딄퀬 ?좎?
+\ No newline at end of file
++          # destination_dir???섏젙?섏뿬 ?쒓렇 踰꾩쟾??寃쎈줈??異붽??⑸땲??
++          # ?? download/v0.1.0
++          destination_dir: download/${{ github.ref_name }}
++          # 湲곗〈 踰꾩쟾???뚯씪?ㅼ쓣 ??젣?섏? ?딄퀬 ?좎??⑸땲??
++          keep_files: true
+\ No newline at end of file
+
+commit ec1d491b4cbf45b4940f661e035d7a08b94bd2fd
+Author: haule21 <sungwoo232@gmail.com>
+Date:   Wed Feb 18 20:05:50 2026 +0900
+
+    Configure release: Disable SelfContained and Trimming for framework-dependent build
+
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 5b3303b..3768e9e 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -53,8 +53,7 @@ jobs:
+             -p:PackageCertificateThumbprint="${{ env.CERT_THUMBPRINT }}" `
+             -p:AppxPackageDir=".\AppxPackages\" `
+             -p:AppxBundle=Always `
+-            --self-contained true `
+-            -p:PublishTrimmed=true  # ?몃━諛??쒖꽦??+            --self-contained false  # ?먭? ?ы븿 鍮뚮뱶 以묐떒
+ 
+       - name: Locate and Stage MSIX Files
+         run: |
+
+commit 47d2995657f023f942d02015879a47f4c06a9fa2
+Author: haule21 <sungwoo232@gmail.com>
+Date:   Wed Feb 18 20:01:44 2026 +0900
+
+    Optimize release: Enable trimming (PublishTrimmed) to reduce MSIX size
+
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index f5d24dc..5b3303b 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -45,8 +45,6 @@ jobs:
+ 
+       - name: Build and Package MSIX
+         run: |
+-          # ?뚯씪 寃쎈줈 ???/p:PackageCertificateThumbprint 瑜??ъ슜?⑸땲??
+-          # ??諛⑹떇? 鍮꾨?踰덊샇 ?낅젰???꾩슂 ?놁뼱 APPX0105 ?먮윭瑜??먯쿇 李⑤떒?⑸땲??
+           dotnet publish TypingApp.csproj `
+             -c Release `
+             -r win-x64 `
+@@ -55,7 +53,8 @@ jobs:
+             -p:PackageCertificateThumbprint="${{ env.CERT_THUMBPRINT }}" `
+             -p:AppxPackageDir=".\AppxPackages\" `
+             -p:AppxBundle=Always `
+-            --self-contained true
++            --self-contained true `
++            -p:PublishTrimmed=true  # ?몃━諛??쒖꽦?? 
+       - name: Locate and Stage MSIX Files
+         run: |
+
+commit 627b3016ee3295ed1846720502b5b609363692d2
+Author: haule21 <sungwoo232@gmail.com>
+Date:   Wed Feb 18 19:55:35 2026 +0900
+
+    Add GitHub Pages deployment step for MSIX artifacts
+
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 0894e36..f5d24dc 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -89,4 +89,13 @@ jobs:
+           # ???듭뀡??false濡?諛붽퓭??議댁옱?섏? ?딅뒗 ?뺤옣???⑦꽩 ?뚮Ц???ㅽ뙣?섏? ?딆뒿?덈떎.
+           fail_on_unmatched_files: false
+         env:
+-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+\ No newline at end of file
++          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
++
++      # 湲곗〈 Release ?낅줈???④퀎 ?댄썑??異붽?
++      - name: Deploy MSIX to GitHub Pages
++        uses: peaceiris/actions-gh-pages@v3
++        with:
++          github_token: ${{ secrets.GITHUB_TOKEN }}
++          publish_dir: ./FinalOutput
++          destination_dir: download  # https://haule21.github.io/Typing/download/ ?꾩튂????λ맖
++          keep_files: true           # 湲곗〈 踰꾩쟾 ?뚯씪?ㅼ쓣 ??젣?섏? ?딄퀬 ?좎?
+\ No newline at end of file
+
+commit 5ae6fdcf692d9242dfa4794900b6db2f44b9a3c8
+Author: haule21 <sungwoo232@gmail.com>
+Date:   Wed Feb 18 19:43:22 2026 +0900
+
+    Fix release: Allow unmatched files in upload to prevent failure on missing extensions
+
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 1708345..0894e36 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -77,12 +77,16 @@ jobs:
+       # 5. 由대━???앹꽦 諛??낅줈??       - name: Create Release and Upload Asset
+         uses: softprops/action-gh-release@v1
++        if: startsWith(github.ref, 'refs/tags/')
+         with:
++          # ?ㅼ젣 ?앹꽦??.msix ?뚯씪怨??뱀떆 紐⑤? bundle ?뚯씪??紐⑤몢 ?ы븿?섎릺, 
++          # ?녿뒗 ?뚯씪???덉뼱???먮윭瑜??댁? ?딅룄濡??ㅼ젙?⑸땲??
+           files: |
+-            FinalOutput/*.msixbundle
+             FinalOutput/*.msix
++            FinalOutput/*.msixbundle
+             FinalOutput/*.appxbundle
+           generate_release_notes: true
+-          fail_on_unmatched_files: true
++          # ???듭뀡??false濡?諛붽퓭??議댁옱?섏? ?딅뒗 ?뺤옣???⑦꽩 ?뚮Ц???ㅽ뙣?섏? ?딆뒿?덈떎.
++          fail_on_unmatched_files: false
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+\ No newline at end of file
+
+commit ac65df2865c166a0bc7723a3c99485ab80be09ff
+Author: haule21 <sungwoo232@gmail.com>
+Date:   Wed Feb 18 19:38:50 2026 +0900
+
+    Fix release: Switch to Cert Thumbprint signing to avoid PFX password issues
+
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index bad0b85..1708345 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -24,28 +24,35 @@ jobs:
+         uses: microsoft/setup-msbuild@v1
+ 
+       - name: Create and Import Signing Certificate
++        id: create_cert
+         run: |
+-          # 1. ?몄쬆???앹꽦
+-          $cert = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" -Subject "CN=TypingApp" -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -Type CodeSigningCert
++          # 1. ?몄쬆???앹꽦 諛???μ냼 ?ㅼ튂
+           $pwd = ConvertTo-SecureString -String "TypingAppPassword" -Force -AsPlainText
++          $cert = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" `
++                    -Subject "CN=TypingApp" `
++                    -KeyAlgorithm RSA -KeyLength 2048 `
++                    -HashAlgorithm SHA256 -Type CodeSigningCert
+           
+-          # 2. ?뚯씪濡??대낫?닿린
+-          Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
+-          
+-          # 3. ?몄쬆????μ냼???ㅼ튂 (以묒슂: ??怨쇱젙???덉뼱???쒕챸 ?먮윭媛 ?щ씪吏묐땲??
+-          Import-PfxCertificate -FilePath "TypingCert.pfx" -CertStoreLocation Cert:\CurrentUser\My -Password $pwd
+-          Import-PfxCertificate -FilePath "TypingCert.pfx" -CertStoreLocation Cert:\CurrentUser\TrustedPeople -Password $pwd
++          # 2. ?좊ː?????덈뒗 ?쇳뵆 ??μ냼?먮룄 蹂듭궗 (?⑦궎吏??뱀씤??
++          $store = New-Object System.Security.Cryptography.X509Certificates.X509Store("TrustedPeople", "CurrentUser")
++          $store.Open("ReadWrite")
++          $store.Add($cert)
++          $store.Close()
++
++          # 3. ?몄쬆??吏臾?Thumbprint)???섍꼍 蹂?섎줈 ???+          echo "CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
++          Write-Host "??Certificate created with Thumbprint: $($cert.Thumbprint)"
+ 
+       - name: Build and Package MSIX
+         run: |
+-          # ?몄쬆?쒓? ??μ냼???덉쑝誘濡?MSBuild媛 ?먮룞?쇰줈 李얠븘 ?ъ슜?⑸땲??
++          # ?뚯씪 寃쎈줈 ???/p:PackageCertificateThumbprint 瑜??ъ슜?⑸땲??
++          # ??諛⑹떇? 鍮꾨?踰덊샇 ?낅젰???꾩슂 ?놁뼱 APPX0105 ?먮윭瑜??먯쿇 李⑤떒?⑸땲??
+           dotnet publish TypingApp.csproj `
+             -c Release `
+             -r win-x64 `
+             -p:PublishAppxPackage=true `
+             -p:AppxPackageSigningEnabled=true `
+-            -p:PackageCertificateKeyFile="TypingCert.pfx" `
+-            -p:PackageCertificatePassword="TypingAppPassword" `
++            -p:PackageCertificateThumbprint="${{ env.CERT_THUMBPRINT }}" `
+             -p:AppxPackageDir=".\AppxPackages\" `
+             -p:AppxBundle=Always `
+             --self-contained true
+
+commit e2c6ac7dbf7b405cc5ef6f7628ec2f1eb8b05967
+Author: haule21 <sungwoo232@gmail.com>
+Date:   Wed Feb 18 19:34:43 2026 +0900
+
+    Fix release: Import cert to store, update WinAppSDK, broaden artifact search (User edits)
+
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index a89dec5..bad0b85 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -23,18 +23,22 @@ jobs:
+       - name: Setup MSBuild
+         uses: microsoft/setup-msbuild@v1
+ 
+-      # 1. ?몄쬆???앹꽦 (MSIX 鍮뚮뱶瑜??꾪빐 ?꾩닔)
+-      - name: Create Signing Certificate
++      - name: Create and Import Signing Certificate
+         run: |
++          # 1. ?몄쬆???앹꽦
+           $cert = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" -Subject "CN=TypingApp" -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -Type CodeSigningCert
+           $pwd = ConvertTo-SecureString -String "TypingAppPassword" -Force -AsPlainText
++          
++          # 2. ?뚯씪濡??대낫?닿린
+           Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
++          
++          # 3. ?몄쬆????μ냼???ㅼ튂 (以묒슂: ??怨쇱젙???덉뼱???쒕챸 ?먮윭媛 ?щ씪吏묐땲??
++          Import-PfxCertificate -FilePath "TypingCert.pfx" -CertStoreLocation Cert:\CurrentUser\My -Password $pwd
++          Import-PfxCertificate -FilePath "TypingCert.pfx" -CertStoreLocation Cert:\CurrentUser\TrustedPeople -Password $pwd
+ 
+-      # 2. MSIX ?⑦궎吏 鍮뚮뱶 (msbuild /restore ?ъ슜?섏뿬 Assets ?뚯씪 ?먮윭 ?닿껐)
+       - name: Build and Package MSIX
+         run: |
+-          # dotnet publish瑜??ъ슜?섏뿬 MSIX ?⑦궎吏??寃잛쓣 ?몃━嫄고빀?덈떎.
+-          # 鍮뚮뱶 寃곌낵臾쇱? ?먮룞?쇰줈 .\AppxPackages ?대뜑???앹꽦?⑸땲??
++          # ?몄쬆?쒓? ??μ냼???덉쑝誘濡?MSBuild媛 ?먮룞?쇰줈 李얠븘 ?ъ슜?⑸땲??
+           dotnet publish TypingApp.csproj `
+             -c Release `
+             -r win-x64 `
+@@ -50,20 +54,16 @@ jobs:
+         run: |
+           New-Item -ItemType Directory -Force -Path "FinalOutput"
+           
+-          # AppxPackages ?대뜑媛 ?앹꽦?섏뿀?붿? ?뺤씤 ??寃??-          $searchPath = "${{ github.workspace }}\AppxPackages"
+-          if (Test-Path $searchPath) {
+-              Write-Host "??AppxPackages ?대뜑 諛쒓껄. ?뚯씪??寃?됲빀?덈떎."
+-              $files = Get-ChildItem -Path $searchPath -Recurse -Include *.msixbundle, *.msix, *.appxbundle | Where-Object { $_.FullName -notmatch "_Test" }
+-              
++          # ?꾧퉴 濡쒓렇?먯꽌 ?뺤씤???꾩튂源뚯? ?ы븿?섏뿬 寃??(Recurse)
++          $files = Get-ChildItem -Path . -Recurse -Include *.msix, *.msixbundle, *.appxbundle | Where-Object { $_.FullName -notmatch "obj|FinalOutput" }
++          
++          if ($files) {
+               foreach ($f in $files) {
+-                  Write-Host "Found artifact: $($f.FullName)"
++                  Write-Host "??諛쒓껄???⑦궎吏: $($f.FullName)"
+                   Copy-Item $f.FullName -Destination "FinalOutput"
+               }
+           } else {
+-              # ?대뜑媛 ?녿떎硫??붾쾭源낆쓣 ?꾪빐 ?꾩껜 由ъ뒪??異쒕젰
+-              Get-ChildItem -Path . -Recurse
+-              Write-Error "???⑦궎吏??ㅽ뙣: AppxPackages ?대뜑媛 ?앹꽦?섏? ?딆븯?듬땲?? 鍮뚮뱶 濡쒓렇瑜??뺤씤?섏꽭??"
++              Write-Error "???⑦궎吏 ?뚯씪??李얠쓣 ???놁뒿?덈떎."
+               exit 1
+           }
+ 
+
+commit aaa3bf8e0d5779817fe3e963356b7b98946816a2
+Author: haule21 <sungwoo232@gmail.com>
+Date:   Wed Feb 18 19:30:21 2026 +0900
+
+    Retry MSIX: Switch to dotnet publish with WindowsAppSDK & simplified paths (User edits)
+
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 7febbd0..a89dec5 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -33,19 +33,18 @@ jobs:
+       # 2. MSIX ?⑦궎吏 鍮뚮뱶 (msbuild /restore ?ъ슜?섏뿬 Assets ?뚯씪 ?먮윭 ?닿껐)
+       - name: Build and Package MSIX
+         run: |
+-          # /p:PublishAppxPackage=true 媛 MSIX ?앹꽦???몃━嫄고븯??'留덈쾿???듭뀡'?낅땲??
+-          # /p:AppxPackageDir 寃쎈줈 ?앹뿉 諛섎뱶????뒳?섏떆 ??媛?\\)瑜?遺숈뿬二쇱꽭??
+-          msbuild TypingApp.csproj `
+-            /t:Build `
+-            /restore `
+-            /p:Configuration=Release `
+-            /p:Platform=x64 `
+-            /p:PublishAppxPackage=true `
+-            /p:AppxPackageSigningEnabled=true `
+-            /p:PackageCertificateKeyFile="TypingCert.pfx" `
+-            /p:PackageCertificatePassword="TypingAppPassword" `
+-            /p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
+-            /p:AppxBundle=Always
++          # dotnet publish瑜??ъ슜?섏뿬 MSIX ?⑦궎吏??寃잛쓣 ?몃━嫄고빀?덈떎.
++          # 鍮뚮뱶 寃곌낵臾쇱? ?먮룞?쇰줈 .\AppxPackages ?대뜑???앹꽦?⑸땲??
++          dotnet publish TypingApp.csproj `
++            -c Release `
++            -r win-x64 `
++            -p:PublishAppxPackage=true `
++            -p:AppxPackageSigningEnabled=true `
++            -p:PackageCertificateKeyFile="TypingCert.pfx" `
++            -p:PackageCertificatePassword="TypingAppPassword" `
++            -p:AppxPackageDir=".\AppxPackages\" `
++            -p:AppxBundle=Always `
++            --self-contained true
+ 
+       - name: Locate and Stage MSIX Files
+         run: |
+
+commit 0bc029777bfe330cbd5aec215ea2134b334aa3ee
+Author: haule21 <sungwoo232@gmail.com>
+Date:   Wed Feb 18 19:26:08 2026 +0900
+
+    Refine release: Switch back to msbuild with PublishAppxPackage=true and cleanup csproj (User edits)
+
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 2d41f3d..7febbd0 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -33,47 +33,38 @@ jobs:
+       # 2. MSIX ?⑦궎吏 鍮뚮뱶 (msbuild /restore ?ъ슜?섏뿬 Assets ?뚯씪 ?먮윭 ?닿껐)
+       - name: Build and Package MSIX
+         run: |
+-          # dotnet publish瑜??ъ슜?섏뿬 MSIX ?⑦궎吏??寃잛쓣 '媛뺤젣濡? ?ㅽ뻾?⑸땲??
+-          dotnet publish TypingApp.csproj `
+-            -c Release `
+-            -r win-x64 `
+-            -p:PublishAppxPackage=true `
+-            -p:AppxPackageSigningEnabled=true `
+-            -p:PackageCertificateKeyFile="TypingCert.pfx" `
+-            -p:PackageCertificatePassword="TypingAppPassword" `
+-            -p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
+-            -p:AppxBundle=Always `
+-            --self-contained true
++          # /p:PublishAppxPackage=true 媛 MSIX ?앹꽦???몃━嫄고븯??'留덈쾿???듭뀡'?낅땲??
++          # /p:AppxPackageDir 寃쎈줈 ?앹뿉 諛섎뱶????뒳?섏떆 ??媛?\\)瑜?遺숈뿬二쇱꽭??
++          msbuild TypingApp.csproj `
++            /t:Build `
++            /restore `
++            /p:Configuration=Release `
++            /p:Platform=x64 `
++            /p:PublishAppxPackage=true `
++            /p:AppxPackageSigningEnabled=true `
++            /p:PackageCertificateKeyFile="TypingCert.pfx" `
++            /p:PackageCertificatePassword="TypingAppPassword" `
++            /p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
++            /p:AppxBundle=Always
+ 
+-      # 3. ?붾쾭源낆슜 ?뚯씪 由ъ뒪??異쒕젰 (?뚯씪??紐?李얠쓣 寃쎌슦 濡쒓렇 ?뺤씤??
+-      - name: Debug - List All Workspace Files
+-        if: always()
+-        run: |
+-          Write-Host "--- ?꾩껜 ?뚯씪 援ъ“ 寃??---"
+-          Get-ChildItem -Path . -Recurse -Include *.msix, *.msixbundle, *.appxbundle | Select-Object FullName
+-
+-      # 4. ?뚯씪 ?섏쭛 諛??ㅽ뀒?댁쭠
+       - name: Locate and Stage MSIX Files
+         run: |
+           New-Item -ItemType Directory -Force -Path "FinalOutput"
+           
+-          # 1. 癒쇱? 紐낆떆?곸씤 寃쎈줈?먯꽌 寃??-          $searchPaths = @("${{ github.workspace }}\AppxPackages", ".")
+-          
+-          foreach ($path in $searchPaths) {
+-              Write-Host "Searching in: $path"
+-              $found = Get-ChildItem -Path $path -Recurse -Include *.msixbundle, *.msix, *.appxbundle | Where-Object { $_.FullName -notmatch "obj|FinalOutput|_Test" }
+-              if ($found) {
+-                  $found | ForEach-Object {
+-                      Write-Host "???⑦궎吏 諛쒓껄: $($_.FullName)"
+-                      Copy-Item $_.FullName -Destination "FinalOutput"
+-                  }
+-                  $hasFiles = $true
++          # AppxPackages ?대뜑媛 ?앹꽦?섏뿀?붿? ?뺤씤 ??寃??+          $searchPath = "${{ github.workspace }}\AppxPackages"
++          if (Test-Path $searchPath) {
++              Write-Host "??AppxPackages ?대뜑 諛쒓껄. ?뚯씪??寃?됲빀?덈떎."
++              $files = Get-ChildItem -Path $searchPath -Recurse -Include *.msixbundle, *.msix, *.appxbundle | Where-Object { $_.FullName -notmatch "_Test" }
++              
++              foreach ($f in $files) {
++                  Write-Host "Found artifact: $($f.FullName)"
++                  Copy-Item $f.FullName -Destination "FinalOutput"
+               }
+-          }
+-          
+-          if (-not $hasFiles) {
+-              Write-Error "??鍮뚮뱶???깃났?덉쑝??MSIX ?뚯씪???앹꽦?섏? ?딆븯?듬땲?? 濡쒓렇?먯꽌 'Appx' 愿???寃잛씠 ?ㅽ뻾?섏뿀?붿? ?뺤씤?섏꽭??"
++          } else {
++              # ?대뜑媛 ?녿떎硫??붾쾭源낆쓣 ?꾪빐 ?꾩껜 由ъ뒪??異쒕젰
++              Get-ChildItem -Path . -Recurse
++              Write-Error "???⑦궎吏??ㅽ뙣: AppxPackages ?대뜑媛 ?앹꽦?섏? ?딆븯?듬땲?? 鍮뚮뱶 濡쒓렇瑜??뺤씤?섏꽭??"
+               exit 1
+           }
+ 
+
+commit 00d0a7840f2287700d37fd3a4aab3818d51f838c
+Author: haule21 <sungwoo232@gmail.com>
+Date:   Wed Feb 18 19:21:49 2026 +0900
+
+    Retry MSIX build: Switch to dotnet publish with PublishAppxPackage=true (User edits)
+
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index d81286b..2d41f3d 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -33,22 +33,17 @@ jobs:
+       # 2. MSIX ?⑦궎吏 鍮뚮뱶 (msbuild /restore ?ъ슜?섏뿬 Assets ?뚯씪 ?먮윭 ?닿껐)
+       - name: Build and Package MSIX
+         run: |
+-          # msbuild瑜??ъ슜?섏뿬 MSIX ?⑦궎吏??寃잛쓣 紐낆떆?곸쑝濡??몄텧?⑸땲??
+-          # /p:PublishAppxPackage=true 媛 MSIX ?앹꽦??寃곗젙吏볥뒗 ?듭떖 ?뚮옒洹몄엯?덈떎.
+-          msbuild TypingApp.csproj `
+-            /t:Build `
+-            /restore `
+-            /p:Configuration=Release `
+-            /p:Platform=x64 `
+-            /p:RuntimeIdentifier=win-x64 `
+-            /p:PublishAppxPackage=true `
+-            /p:AppxPackageSigningEnabled=true `
+-            /p:PackageCertificateKeyFile="TypingCert.pfx" `
+-            /p:PackageCertificatePassword="TypingAppPassword" `
+-            /p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
+-            /p:GenerateAppxPackageOnBuild=true `
+-            /p:AppxBundle=Always `
+-            /p:UapAppxPackageBuildMode=SideloadOnly
++          # dotnet publish瑜??ъ슜?섏뿬 MSIX ?⑦궎吏??寃잛쓣 '媛뺤젣濡? ?ㅽ뻾?⑸땲??
++          dotnet publish TypingApp.csproj `
++            -c Release `
++            -r win-x64 `
++            -p:PublishAppxPackage=true `
++            -p:AppxPackageSigningEnabled=true `
++            -p:PackageCertificateKeyFile="TypingCert.pfx" `
++            -p:PackageCertificatePassword="TypingAppPassword" `
++            -p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
++            -p:AppxBundle=Always `
++            --self-contained true
+ 
+       # 3. ?붾쾭源낆슜 ?뚯씪 由ъ뒪??異쒕젰 (?뚯씪??紐?李얠쓣 寃쎌슦 濡쒓렇 ?뺤씤??
+       - name: Debug - List All Workspace Files
+@@ -60,19 +55,25 @@ jobs:
+       # 4. ?뚯씪 ?섏쭛 諛??ㅽ뀒?댁쭠
+       - name: Locate and Stage MSIX Files
+         run: |
+-          if (Test-Path "FinalOutput") { Remove-Item -Recurse -Force "FinalOutput" }
+           New-Item -ItemType Directory -Force -Path "FinalOutput"
+           
+-          # ?섏쐞 ?대뜑 源딆닕???덈뒗 ?⑦궎吏源뚯? 紐⑤몢 寃??-          $files = Get-ChildItem -Path . -Recurse -Include *.msixbundle, *.msix, *.appxbundle | Where-Object { $_.FullName -notmatch "obj|FinalOutput|_Test" }
++          # 1. 癒쇱? 紐낆떆?곸씤 寃쎈줈?먯꽌 寃??+          $searchPaths = @("${{ github.workspace }}\AppxPackages", ".")
+           
+-          if ($files) {
+-              foreach ($f in $files) {
+-                  Write-Host "??諛쒓껄???꾪떚?⑺듃: $($f.FullName)"
+-                  Copy-Item $f.FullName -Destination "FinalOutput"
++          foreach ($path in $searchPaths) {
++              Write-Host "Searching in: $path"
++              $found = Get-ChildItem -Path $path -Recurse -Include *.msixbundle, *.msix, *.appxbundle | Where-Object { $_.FullName -notmatch "obj|FinalOutput|_Test" }
++              if ($found) {
++                  $found | ForEach-Object {
++                      Write-Host "???⑦궎吏 諛쒓껄: $($_.FullName)"
++                      Copy-Item $_.FullName -Destination "FinalOutput"
++                  }
++                  $hasFiles = $true
+               }
+-          } else {
+-              Write-Error "??MSIX ?뚯씪??李얠쓣 ???놁뒿?덈떎. 鍮뚮뱶 濡쒓렇???먮윭 硫붿떆吏瑜??뺤씤?댁＜?몄슂."
++          }
++          
++          if (-not $hasFiles) {
++              Write-Error "??鍮뚮뱶???깃났?덉쑝??MSIX ?뚯씪???앹꽦?섏? ?딆븯?듬땲?? 濡쒓렇?먯꽌 'Appx' 愿???寃잛씠 ?ㅽ뻾?섏뿀?붿? ?뺤씤?섏꽭??"
+               exit 1
+           }
+ 
+
+commit fafe5f8712482a65810a5bef1c55253d0847e6ce
+Author: haule21 <sungwoo232@gmail.com>
+Date:   Wed Feb 18 19:16:33 2026 +0900
+
+    Fix MSIX build: Add RuntimeIdentifier and PublishAppxPackage prop (User edits)
+
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 1ddfe98..d81286b 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -33,11 +33,15 @@ jobs:
+       # 2. MSIX ?⑦궎吏 鍮뚮뱶 (msbuild /restore ?ъ슜?섏뿬 Assets ?뚯씪 ?먮윭 ?닿껐)
+       - name: Build and Package MSIX
+         run: |
++          # msbuild瑜??ъ슜?섏뿬 MSIX ?⑦궎吏??寃잛쓣 紐낆떆?곸쑝濡??몄텧?⑸땲??
++          # /p:PublishAppxPackage=true 媛 MSIX ?앹꽦??寃곗젙吏볥뒗 ?듭떖 ?뚮옒洹몄엯?덈떎.
+           msbuild TypingApp.csproj `
+-            /t:Publish `
++            /t:Build `
+             /restore `
+             /p:Configuration=Release `
+             /p:Platform=x64 `
++            /p:RuntimeIdentifier=win-x64 `
++            /p:PublishAppxPackage=true `
+             /p:AppxPackageSigningEnabled=true `
+             /p:PackageCertificateKeyFile="TypingCert.pfx" `
+             /p:PackageCertificatePassword="TypingAppPassword" `
+
+commit e25d9da74472a7ef4204138febd098412d2cd478
+Author: haule21 <sungwoo232@gmail.com>
+Date:   Wed Feb 18 19:09:10 2026 +0900
+
+    Refine release workflow: Add /restore and improve debug logging (User edits)
+
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 02a7efe..1ddfe98 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -23,18 +23,19 @@ jobs:
+       - name: Setup MSBuild
+         uses: microsoft/setup-msbuild@v1
+ 
+-      # 1. ?몄쬆???앹꽦 (???④퀎媛 ?놁쑝硫?MSIX媛 ??留뚮뱾?댁쭛?덈떎)
++      # 1. ?몄쬆???앹꽦 (MSIX 鍮뚮뱶瑜??꾪빐 ?꾩닔)
+       - name: Create Signing Certificate
+         run: |
+           $cert = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" -Subject "CN=TypingApp" -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -Type CodeSigningCert
+           $pwd = ConvertTo-SecureString -String "TypingAppPassword" -Force -AsPlainText
+           Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
+ 
+-      # 2. MSIX ?⑦궎吏 鍮뚮뱶 (媛???뺤떎??MSBuild 諛⑹떇 ?ъ슜)
++      # 2. MSIX ?⑦궎吏 鍮뚮뱶 (msbuild /restore ?ъ슜?섏뿬 Assets ?뚯씪 ?먮윭 ?닿껐)
+       - name: Build and Package MSIX
+         run: |
+           msbuild TypingApp.csproj `
+             /t:Publish `
++            /restore `
+             /p:Configuration=Release `
+             /p:Platform=x64 `
+             /p:AppxPackageSigningEnabled=true `
+@@ -45,11 +46,11 @@ jobs:
+             /p:AppxBundle=Always `
+             /p:UapAppxPackageBuildMode=SideloadOnly
+ 
+-      # 3. ?붾쾭源? ?뚯씪???대뵒???앷꼈?붿? 異쒕젰 (?ㅽ뙣 ???뺤씤??
+-      - name: List Files for Debugging
++      # 3. ?붾쾭源낆슜 ?뚯씪 由ъ뒪??異쒕젰 (?뚯씪??紐?李얠쓣 寃쎌슦 濡쒓렇 ?뺤씤??
++      - name: Debug - List All Workspace Files
+         if: always()
+         run: |
+-          Write-Host "--- ?묒뾽 ?붾젆?좊━ ?꾩껜 ?뚯씪 寃??---"
++          Write-Host "--- ?꾩껜 ?뚯씪 援ъ“ 寃??---"
+           Get-ChildItem -Path . -Recurse -Include *.msix, *.msixbundle, *.appxbundle | Select-Object FullName
+ 
+       # 4. ?뚯씪 ?섏쭛 諛??ㅽ뀒?댁쭠
+@@ -58,16 +59,16 @@ jobs:
+           if (Test-Path "FinalOutput") { Remove-Item -Recurse -Force "FinalOutput" }
+           New-Item -ItemType Directory -Force -Path "FinalOutput"
+           
+-          # AppxPackages ?대뜑 ?먮뒗 ?꾩껜 ?대뜑?먯꽌 ?뺤옣??寃??-          $files = Get-ChildItem -Path . -Recurse -Include *.msixbundle, *.msix, *.appxbundle | Where-Object { $_.FullName -notmatch "obj|FinalOutput" }
++          # ?섏쐞 ?대뜑 源딆닕???덈뒗 ?⑦궎吏源뚯? 紐⑤몢 寃??+          $files = Get-ChildItem -Path . -Recurse -Include *.msixbundle, *.msix, *.appxbundle | Where-Object { $_.FullName -notmatch "obj|FinalOutput|_Test" }
+           
+           if ($files) {
+               foreach ($f in $files) {
+-                  Write-Host "??諛쒓껄: $($f.FullName)"
++                  Write-Host "??諛쒓껄???꾪떚?⑺듃: $($f.FullName)"
+                   Copy-Item $f.FullName -Destination "FinalOutput"
+               }
+           } else {
+-              Write-Error "??MSIX ?뚯씪??李얠쓣 ???놁뒿?덈떎. 鍮뚮뱶 ?ㅼ젙???뺤씤?섏꽭??"
++              Write-Error "??MSIX ?뚯씪??李얠쓣 ???놁뒿?덈떎. 鍮뚮뱶 濡쒓렇???먮윭 硫붿떆吏瑜??뺤씤?댁＜?몄슂."
+               exit 1
+           }
+ 
+
+commit 49fcccc037551024f29d7468bd84e692fc95b146
+Author: haule21 <sungwoo232@gmail.com>
+Date:   Wed Feb 18 19:04:01 2026 +0900
+
+    Update release workflow with user-defined MSBuild adjustments
+
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 5c8f4f5..02a7efe 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -23,95 +23,57 @@ jobs:
+       - name: Setup MSBuild
+         uses: microsoft/setup-msbuild@v1
+ 
+-      - name: Publish MSIX Package
++      # 1. ?몄쬆???앹꽦 (???④퀎媛 ?놁쑝硫?MSIX媛 ??留뚮뱾?댁쭛?덈떎)
++      - name: Create Signing Certificate
+         run: |
+-          # Use dotnet publish as requested, with explicit MSIX properties
+-          # We pass WindowsPackageType=MSIX to ensure the MSIX targets are invoked
+-          dotnet publish TypingApp.csproj `
+-            -c Release `
+-            -r win-x64 `
+-            --self-contained true `
+-            -p:PublishSingleFile=false `
+-            -p:WindowsPackageType=MSIX `
+-            -p:AppxPackageSigningEnabled=true `
+-            -p:PackageCertificateKeyFile="TypingCert.pfx" `
+-            -p:PackageCertificatePassword="TypingAppPassword" `
+-            -p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
+-            -p:GenerateAppxPackageOnBuild=true `
+-            -p:AppxBundle=Always `
+-            -p:UapAppxPackageBuildMode=SideloadOnly
++          $cert = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" -Subject "CN=TypingApp" -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -Type CodeSigningCert
++          $pwd = ConvertTo-SecureString -String "TypingAppPassword" -Force -AsPlainText
++          Export-PfxCertificate -Cert $cert -FilePath "TypingCert.pfx" -Password $pwd
+ 
+-      - name: List All Workspace Files (Debug)
+-        if: always()
+-        run: |
+-          # Debug: Recursively list all files to find where the MSIX went if it's missing
+-          Get-ChildItem -Path . -Recurse -Filter "*.msix*" | Select-Object FullName
+-
+-      - name: Locate and Stage MSIX Files
++      # 2. MSIX ?⑦궎吏 鍮뚮뱶 (媛???뺤떎??MSBuild 諛⑹떇 ?ъ슜)
++      - name: Build and Package MSIX
+         run: |
+-          New-Item -ItemType Directory -Force -Path "FinalOutput"
+-          
+-          # Search in the explicit AppxPackages directory first
+-          $searchPath = "${{ github.workspace }}\AppxPackages"
+-          if (-not (Test-Path $searchPath)) {
+-             Write-Host "AppxPackages path not found, searching entire workspace..."
+-             $searchPath = "."
+-          }
+-
+-          $files = Get-ChildItem -Path $searchPath -Recurse -Include *.msixbundle, *.msix, *.appxbundle | Where-Object { $_.FullName -notlike "*FinalOutput*" }
+-          
+-          if ($files) {
+-              foreach ($f in $files) {
+-                  Write-Host "Found artifact: $($f.FullName)"
+-                  Copy-Item $f.FullName -Destination "FinalOutput"
+-              }
+-          } else {
+-              Write-Error "CRITICAL: No MSIX files found anywhere!"
+-              exit 1
+-          }
++          msbuild TypingApp.csproj `
++            /t:Publish `
++            /p:Configuration=Release `
++            /p:Platform=x64 `
++            /p:AppxPackageSigningEnabled=true `
++            /p:PackageCertificateKeyFile="TypingCert.pfx" `
++            /p:PackageCertificatePassword="TypingAppPassword" `
++            /p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
++            /p:GenerateAppxPackageOnBuild=true `
++            /p:AppxBundle=Always `
++            /p:UapAppxPackageBuildMode=SideloadOnly
+ 
+-      - name: List All Workspace Files (Debug)
++      # 3. ?붾쾭源? ?뚯씪???대뵒???앷꼈?붿? 異쒕젰 (?ㅽ뙣 ???뺤씤??
++      - name: List Files for Debugging
+         if: always()
+         run: |
+-          # Debug: Recursively list all files to find where the MSIX went if it's missing
+-          Get-ChildItem -Path . -Recurse -Filter "*.msix*" | Select-Object FullName
++          Write-Host "--- ?묒뾽 ?붾젆?좊━ ?꾩껜 ?뚯씪 寃??---"
++          Get-ChildItem -Path . -Recurse -Include *.msix, *.msixbundle, *.appxbundle | Select-Object FullName
+ 
++      # 4. ?뚯씪 ?섏쭛 諛??ㅽ뀒?댁쭠
+       - name: Locate and Stage MSIX Files
+         run: |
++          if (Test-Path "FinalOutput") { Remove-Item -Recurse -Force "FinalOutput" }
+           New-Item -ItemType Directory -Force -Path "FinalOutput"
+           
+-          # Search in the explicit AppxPackages directory first
+-          $searchPath = "${{ github.workspace }}\AppxPackages"
+-          if (-not (Test-Path $searchPath)) {
+-             Write-Host "AppxPackages path not found, searching entire workspace..."
+-             $searchPath = "."
+-          }
+-
+-          $files = Get-ChildItem -Path $searchPath -Recurse -Include *.msixbundle, *.msix, *.appxbundle
+-          
+-          if ($files) {
+-              foreach ($f in $files) {
+-                  Write-Host "Found artifact: $($f.FullName)"
+-                  Copy-Item $f.FullName -Destination "FinalOutput"
+-              }
+-          } else {
+-              Write-Error "CRITICAL: No MSIX files found anywhere!"
+-              exit 1
+-          }
++          # AppxPackages ?대뜑 ?먮뒗 ?꾩껜 ?대뜑?먯꽌 ?뺤옣??寃??+          $files = Get-ChildItem -Path . -Recurse -Include *.msixbundle, *.msix, *.appxbundle | Where-Object { $_.FullName -notmatch "obj|FinalOutput" }
+           
+           if ($files) {
+               foreach ($f in $files) {
+-                  Write-Host "Found artifact: $($f.FullName)"
++                  Write-Host "??諛쒓껄: $($f.FullName)"
+                   Copy-Item $f.FullName -Destination "FinalOutput"
+               }
+           } else {
+-              Write-Error "No MSIX or MSIXBundle files found in output!"
++              Write-Error "??MSIX ?뚯씪??李얠쓣 ???놁뒿?덈떎. 鍮뚮뱶 ?ㅼ젙???뺤씤?섏꽭??"
+               exit 1
+           }
+ 
++      # 5. 由대━???앹꽦 諛??낅줈??       - name: Create Release and Upload Asset
+         uses: softprops/action-gh-release@v1
+-        if: startsWith(github.ref, 'refs/tags/')
+         with:
+           files: |
+             FinalOutput/*.msixbundle
