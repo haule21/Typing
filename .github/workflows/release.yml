@@ -46,11 +46,13 @@ jobs:
             /restore `
             /t:Build `
             /p:Configuration=Release `
+            /p:Platform=x64 `
             /p:RuntimeIdentifier=win-x64 `
             /p:PublishAppxPackage=true `
+            /p:GenerateAppxPackageOnBuild=true `
             /p:AppxPackageSigningEnabled=true `
             /p:PackageCertificateThumbprint="${{ env.CERT_THUMBPRINT }}" `
-            /p:AppxPackageDir=".\AppxPackages\" `
+            /p:AppxPackageDir="${{ github.workspace }}\AppxPackages\\" `
             /p:AppxBundle=Always `
             /p:SelfContained=false
 
