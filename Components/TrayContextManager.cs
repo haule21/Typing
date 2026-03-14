@@ -36,7 +36,7 @@ namespace TypingApp.Components
                 _notifyIcon.IconSource = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/Resources/TypingClipboard v0.1.png"));
             }
 
-            _notifyIcon.ToolTipText = "Typing v0.1";
+            _notifyIcon.ToolTipText = "Typing v1.0.4.0";
 
             var contextMenu = new ContextMenu();
 
@@ -45,7 +45,7 @@ namespace TypingApp.Components
             contextMenu.Items.Add(settingsItem);
 
             var exitItem = new MenuItem { Header = "Exit" };
-            exitItem.Click += (s, e) => Application.Current.Shutdown();
+            exitItem.Click += (s, e) => System.Windows.Application.Current.Shutdown();
             contextMenu.Items.Add(exitItem);
 
             _notifyIcon.ContextMenu = contextMenu;
@@ -60,6 +60,22 @@ namespace TypingApp.Components
         private async void HandlePaste()
         {
             string? text = _clipboardManager.GetText();
+            bool isFromOcr = false;
+
+            // If no text, try to get image for OCR if enabled
+            if (string.IsNullOrEmpty(text) && _configStore.Current.EnableImageOcr)
+            {
+                var image = _clipboardManager.GetImage();
+                if (image != null)
+                {
+                    var ocrService = new OcrService();
+                    if (ocrService.IsSupported())
+                    {
+                        text = await ocrService.RecognizeTextAsync(image);
+                        isFromOcr = !string.IsNullOrEmpty(text);
+                    }
+                }
+            }
 
             if (!string.IsNullOrEmpty(text))
             {
@@ -70,7 +86,16 @@ namespace TypingApp.Components
                 }
 
                 await _inputSimulator.EnsureModifiersUpAsync();
-                await _inputSimulator.TypeTextAsync(text, _configStore.Current.TypingDelay);
+                
+                if (isFromOcr)
+                {
+                    // For OCR text, type it instantly (0ms delay) without touching the clipboard
+                    await _inputSimulator.TypeTextAsync(text, 0);
+                }
+                else
+                {
+                    await _inputSimulator.TypeTextAsync(text, _configStore.Current.TypingDelay);
+                }
             }
         }
 

@@ -17,6 +17,7 @@ namespace TypingApp.Models
         public bool IgnoreTabs { get; set; } = false;
         public bool IgnoreNewlines { get; set; } = false;
         public int ExecutionDelaySeconds { get; set; } = 0;
+        public bool EnableImageOcr { get; set; } = false;
     }
 
     public class HotkeyConfig

@@ -34,6 +34,7 @@ namespace TypingApp.Views
             chkIgnoreTabs.IsChecked = _config.IgnoreTabs;
             chkIgnoreNewlines.IsChecked = _config.IgnoreNewlines;
             txtExecutionDelay.Text = _config.ExecutionDelaySeconds.ToString();
+            chkEnableImageOcr.IsChecked = _config.EnableImageOcr;
 
             _newKey = _config.PasteHotkey.Key;
             _newModifiers = _config.PasteHotkey.Modifiers;
@@ -54,7 +55,7 @@ namespace TypingApp.Views
             txtHotkey.Focus();
         }
 
-        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             if (!_isListening) return;
 
@@ -79,6 +80,33 @@ namespace TypingApp.Views
             btnChangeHotkey.IsEnabled = true;
         }
 
+        private void ChkEnableImageOcr_Checked(object sender, RoutedEventArgs e)
+        {
+            var ocrService = new TypingApp.Services.OcrService();
+            if (!ocrService.IsSupported())
+            {
+                System.Windows.MessageBox.Show("Feature not supported. This feature requires Windows 10 or later.", "Unsupported", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                chkEnableImageOcr.IsChecked = false;
+                return;
+            }
+
+            if (!ocrService.HasLanguagePacks())
+            {
+                var result = System.Windows.MessageBox.Show(
+                    "This feature requires a Windows language pack (e.g., English or Korean) to be installed for OCR to work.\n\nWould you like to open the Windows Language Settings to install one?",
+                    "Language Pack Required",
+                    System.Windows.MessageBoxButton.YesNo,
+                    System.Windows.MessageBoxImage.Information);
+
+                if (result == System.Windows.MessageBoxResult.Yes)
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("ms-settings:regionlanguage") { UseShellExecute = true });
+                }
+
+                chkEnableImageOcr.IsChecked = false;
+            }
+        }
+
         private void BtnSave_Click(object sender, RoutedEventArgs e)
         {
             if (int.TryParse(txtDelay.Text, out int delay))
@@ -86,11 +114,12 @@ namespace TypingApp.Views
                 _config.TypingDelay = delay;
             }
 
-            _config.PasteHotkey.Key = _newKey;
             _config.PasteHotkey.Modifiers = _newModifiers;
 
             _config.IgnoreTabs = chkIgnoreTabs.IsChecked ?? false;
             _config.IgnoreNewlines = chkIgnoreNewlines.IsChecked ?? false;
+            _config.EnableImageOcr = chkEnableImageOcr.IsChecked ?? false;
+
             if (int.TryParse(txtExecutionDelay.Text, out int execDelay))
             {
                 // Clamp between 0 and 10

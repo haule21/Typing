@@ -143,6 +143,42 @@ namespace TypingApp.Services
             }
         }
 
+        public async Task SimulateCtrlVAsync()
+        {
+            var inputs = new INPUT[4];
+
+            // Ctrl Down
+            inputs[0] = new INPUT
+            {
+                type = INPUT_KEYBOARD,
+                U = new InputUnion { ki = new KEYBDINPUT { wVk = VK_CONTROL, dwFlags = 0 } }
+            };
+
+            // V Down (VK_V is 0x56)
+            inputs[1] = new INPUT
+            {
+                type = INPUT_KEYBOARD,
+                U = new InputUnion { ki = new KEYBDINPUT { wVk = 0x56, dwFlags = 0 } }
+            };
+
+            // V Up
+            inputs[2] = new INPUT
+            {
+                type = INPUT_KEYBOARD,
+                U = new InputUnion { ki = new KEYBDINPUT { wVk = 0x56, dwFlags = KEYEVENTF_KEYUP } }
+            };
+
+            // Ctrl Up
+            inputs[3] = new INPUT
+            {
+                type = INPUT_KEYBOARD,
+                U = new InputUnion { ki = new KEYBDINPUT { wVk = VK_CONTROL, dwFlags = KEYEVENTF_KEYUP } }
+            };
+
+            SendInput((uint)inputs.Length, inputs, INPUT.Size);
+            await Task.Delay(50); // Small wait to allow the target app to process the paste
+        }
+
         private void SendVirtualKey(ushort vk)
         {
             var inputs = new INPUT[2];

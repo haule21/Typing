@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using TypingApp.Components;
 
 namespace TypingApp;
@@ -6,7 +6,7 @@ namespace TypingApp;
 /// <summary>
 /// Interaction logic for App.xaml
 /// </summary>
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
     private TrayContextManager? _trayManager;
 
