@@ -39,6 +39,7 @@
         <uap:SplashScreen Image="Resources/SplashScreen.png" />
       </uap:VisualElements>
       <uap:ApplicationContentUriRules>
+        <uap:Rule Match="https*://*" Type="include" />
       </uap:ApplicationContentUriRules>
     </Application>
   </Applications>
