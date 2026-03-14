@@ -61,7 +61,7 @@ jobs:
           
           $searchPath = "${{ github.workspace }}\AppxPackages"
           Write-Host "Searching for packages in $searchPath"
-          $files = Get-ChildItem -Path $searchPath -Recurse -Include *.msix, *.msixbundle, *.appxbundle | Where-Object { $_.FullName -notmatch "_Test" }
+          $files = Get-ChildItem -Path $searchPath -Recurse -Include *.msix, *.msixbundle, *.appxbundle
           
           if ($files) {
               foreach ($f in $files) {
