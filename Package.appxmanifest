@@ -37,6 +37,7 @@
         Square44x44Logo="Resources/Square44x44Logo.png">
         <uap:DefaultTile Wide310x150Logo="Resources/Square150x150Logo.png" />
         <uap:SplashScreen Image="Resources/SplashScreen.png" />
+      </uap:VisualElements>
       <uap:ApplicationContentUriRules>
       </uap:ApplicationContentUriRules>
     </Application>
