@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Input;
 using TypingApp.Models;
+using TypingApp.Services;
+using System.Threading.Tasks;
 
 namespace TypingApp.Views
 {
@@ -35,6 +37,7 @@ namespace TypingApp.Views
             chkIgnoreNewlines.IsChecked = _config.IgnoreNewlines;
             txtExecutionDelay.Text = _config.ExecutionDelaySeconds.ToString();
             chkEnableImageOcr.IsChecked = _config.EnableImageOcr;
+            lblOcrLang.Text = string.IsNullOrEmpty(_config.OcrLanguage) ? "[Auto]" : $"[{_config.OcrLanguage}]";
 
             _newKey = _config.PasteHotkey.Key;
             _newModifiers = _config.PasteHotkey.Modifiers;
@@ -80,7 +83,7 @@ namespace TypingApp.Views
             btnChangeHotkey.IsEnabled = true;
         }
 
-        private void ChkEnableImageOcr_Checked(object sender, RoutedEventArgs e)
+        private async void ChkEnableImageOcr_Checked(object sender, RoutedEventArgs e)
         {
             var ocrService = new TypingApp.Services.OcrService();
             if (!ocrService.IsSupported())
@@ -90,21 +93,193 @@ namespace TypingApp.Views
                 return;
             }
 
-            if (!ocrService.HasLanguagePacks())
+            var tessManager = new TesseractManager(_config.OcrLanguage);
+            await tessManager.InitializeAsync();
+            if (!tessManager.HasLanguagePack(_config.OcrLanguage))
             {
                 var result = System.Windows.MessageBox.Show(
-                    "This feature requires a Windows language pack (e.g., English or Korean) to be installed for OCR to work.\n\nWould you like to open the Windows Language Settings to install one?",
+                    "언어팩 다운로드 진행 시 정밀한 OCR 사용이 가능합니다. 추가로 다운로드 받으시겠습니까?\n(Download Tesseract language pack?)",
                     "Language Pack Required",
                     System.Windows.MessageBoxButton.YesNo,
                     System.Windows.MessageBoxImage.Information);
 
                 if (result == System.Windows.MessageBoxResult.Yes)
                 {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("ms-settings:regionlanguage") { UseShellExecute = true });
+                    lblStatus.Text = "Downloading language pack...";
+                    bool success = await tessManager.EnsureLanguagePackAsync(_config.OcrLanguage);
+                    lblStatus.Text = success ? "Language pack ready." : "Download failed.";
+                    if (!success)
+                    {
+                        chkEnableImageOcr.IsChecked = false;
+                    }
                 }
-
-                chkEnableImageOcr.IsChecked = false;
+                else
+                {
+                    chkEnableImageOcr.IsChecked = false;
+                }
             }
+        }
+
+        private async void BtnOcrLang_Click(object sender, RoutedEventArgs e)
+        {
+            var availableLangs = new[]
+            {
+                (Code: "kor", Name: "Korean (한국어)"),
+                (Code: "eng", Name: "English (영어/숫자)"),
+                (Code: "jpn", Name: "Japanese (일본어)"),
+                (Code: "chi_sim", Name: "Chinese (중국어 간체)"),
+                (Code: "chi_tra", Name: "Chinese (중국어 번체)"),
+                (Code: "fra", Name: "French (프랑스어)"),
+                (Code: "deu", Name: "German (독일어)"),
+                (Code: "spa", Name: "Spanish (스페인어)"),
+                (Code: "ita", Name: "Italian (이탈리아어)"),
+                (Code: "rus", Name: "Russian (러시아어)"),
+                (Code: "por", Name: "Portuguese (포르투갈어)"),
+                (Code: "vie", Name: "Vietnamese (베트남어)"),
+                (Code: "tha", Name: "Thai (태국어)"),
+                (Code: "ara", Name: "Arabic (아랍어)"),
+                (Code: "hin", Name: "Hindi (힌디어)"),
+                (Code: "osd", Name: "Scripts & Orientation (OSD)")
+            };
+
+            var dialog = new Window
+            {
+                Title = "OCR Language Settings",
+                Width = 350,
+                Height = 450,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.CanResize,
+                Background = System.Windows.Media.Brushes.GhostWhite
+            };
+
+            var mainGrid = new System.Windows.Controls.Grid { Margin = new Thickness(15) };
+            mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+
+            var header = new System.Windows.Controls.TextBlock 
+            { 
+                Text = "Select up to 2 languages:", 
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 0, 0, 10) 
+            };
+            System.Windows.Controls.Grid.SetRow(header, 0);
+            mainGrid.Children.Add(header);
+
+            var listView = new System.Windows.Controls.ListView
+            {
+                Background = System.Windows.Media.Brushes.White,
+                BorderBrush = System.Windows.Media.Brushes.LightGray,
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            System.Windows.Controls.Grid.SetRow(listView, 1);
+            mainGrid.Children.Add(listView);
+
+            var checkBoxes = new System.Collections.Generic.List<(string Code, System.Windows.Controls.CheckBox Box, System.Windows.Controls.TextBlock Status)>();
+            var tm = new TesseractManager(""); 
+            await tm.InitializeAsync();
+
+            string currentLangsStr = _config.OcrLanguage ?? "";
+            var currentLangs = currentLangsStr.Split('+', System.StringSplitOptions.RemoveEmptyEntries).ToList();
+
+            foreach (var lang in availableLangs)
+            {
+                bool isDownloaded = tm.HasLanguagePack(lang.Code);
+                
+                var itemGrid = new System.Windows.Controls.Grid { Width = 300, Margin = new Thickness(5) };
+                itemGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                itemGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+
+                var cb = new System.Windows.Controls.CheckBox
+                {
+                    Content = isDownloaded ? lang.Name : $"{lang.Name} (Not Installed)",
+                    IsChecked = currentLangs.Contains(lang.Code),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Tag = lang.Code,
+                    Foreground = isDownloaded ? System.Windows.Media.Brushes.Black : System.Windows.Media.Brushes.Gray
+                };
+
+                var statusIcon = new System.Windows.Controls.TextBlock
+                {
+                    Text = isDownloaded ? "✓" : "!",
+                    Foreground = isDownloaded ? System.Windows.Media.Brushes.Green : System.Windows.Media.Brushes.Orange,
+                    FontWeight = FontWeights.Bold,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(10, 0, 5, 0)
+                };
+
+                System.Windows.Controls.Grid.SetColumn(cb, 0);
+                System.Windows.Controls.Grid.SetColumn(statusIcon, 1);
+                itemGrid.Children.Add(cb);
+                itemGrid.Children.Add(statusIcon);
+
+                listView.Items.Add(itemGrid);
+                checkBoxes.Add((lang.Code, cb, statusIcon));
+
+                cb.Checked += async (s, ev) =>
+                {
+                    int checkedCount = checkBoxes.Count(x => x.Box.IsChecked == true);
+                    if (checkedCount > 2)
+                    {
+                        cb.IsChecked = false;
+                        System.Windows.MessageBox.Show("You can select up to 2 languages.", "Limit Exceeded", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    if (!tm.HasLanguagePack(lang.Code))
+                    {
+                        cb.IsEnabled = false;
+                        lblStatus.Text = $"Downloading {lang.Code}...";
+                        bool success = await tm.EnsureLanguagePackAsync(lang.Code);
+                        lblStatus.Text = success ? "Download complete." : "Download failed.";
+                        
+                        if (success)
+                        {
+                            cb.Foreground = System.Windows.Media.Brushes.Black;
+                            cb.Content = lang.Name;
+                            statusIcon.Text = "✓";
+                            statusIcon.Foreground = System.Windows.Media.Brushes.Green;
+                        }
+                        else
+                        {
+                            cb.IsChecked = false;
+                            System.Windows.MessageBox.Show($"Failed to download {lang.Code}.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
+                        cb.IsEnabled = true;
+                    }
+                };
+            }
+
+            var btnApply = new System.Windows.Controls.Button 
+            { 
+                Content = "Apply", 
+                Height = 35, 
+                Background = System.Windows.Media.Brushes.LightBlue,
+                FontWeight = FontWeights.Bold
+            };
+            System.Windows.Controls.Grid.SetRow(btnApply, 2);
+            mainGrid.Children.Add(btnApply);
+
+            btnApply.Click += (s, ev) =>
+            {
+                var selected = checkBoxes.Where(x => x.Box.IsChecked == true).Select(x => x.Code).ToList();
+                if (selected.Count == 0)
+                {
+                    _config.OcrLanguage = "";
+                    lblOcrLang.Text = "[Auto]";
+                }
+                else
+                {
+                    _config.OcrLanguage = string.Join("+", selected);
+                    lblOcrLang.Text = $"[{_config.OcrLanguage}]";
+                }
+                dialog.Close();
+            };
+
+            dialog.Content = mainGrid;
+            dialog.ShowDialog();
         }
 
         private void BtnSave_Click(object sender, RoutedEventArgs e)
@@ -119,6 +294,9 @@ namespace TypingApp.Views
             _config.IgnoreTabs = chkIgnoreTabs.IsChecked ?? false;
             _config.IgnoreNewlines = chkIgnoreNewlines.IsChecked ?? false;
             _config.EnableImageOcr = chkEnableImageOcr.IsChecked ?? false;
+            
+            string langValue = lblOcrLang.Text.Trim('[', ']');
+            _config.OcrLanguage = (langValue == "Auto") ? "" : langValue;
 
             if (int.TryParse(txtExecutionDelay.Text, out int execDelay))
             {

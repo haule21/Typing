@@ -1,6 +1,9 @@
 using Hardcodet.Wpf.TaskbarNotification;
 using System;
 using System.Drawing;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using TypingApp.Models;
@@ -24,7 +27,6 @@ namespace TypingApp.Components
 
             _notifyIcon = new TaskbarIcon();
 
-            // AppDomain.CurrentDomain.BaseDirectory works consistently for Content files copied to output directory
             string iconPath = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "Resources", "TypingClipboard v0.1.png");
             if (System.IO.File.Exists(iconPath))
             {
@@ -32,14 +34,12 @@ namespace TypingApp.Components
             }
             else
             {
-                // Fallback to pack URI if it was embedded as a Resource
                 _notifyIcon.IconSource = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/Resources/TypingClipboard v0.1.png"));
             }
 
-            _notifyIcon.ToolTipText = "Typing v1.0.4.0";
+            _notifyIcon.ToolTipText = "Typing v1.0.5.0";
 
             var contextMenu = new ContextMenu();
-
             var settingsItem = new MenuItem { Header = "Settings" };
             settingsItem.Click += (s, e) => OpenSettings();
             contextMenu.Items.Add(settingsItem);
@@ -59,46 +59,121 @@ namespace TypingApp.Components
 
         private async void HandlePaste()
         {
-            string? text = _clipboardManager.GetText();
-            bool isFromOcr = false;
-
-            // If no text, try to get image for OCR if enabled
-            if (string.IsNullOrEmpty(text) && _configStore.Current.EnableImageOcr)
+            // [추가] 전체 로직을 try-catch로 감싸 예외 발생 시 프로그램이 종료되는 것을 방지합니다.
+            try
             {
-                var image = _clipboardManager.GetImage();
-                if (image != null)
+                string? text = _clipboardManager.GetText();
+                bool isFromOcr = false;
+                using var cts = new CancellationTokenSource();
+                OcrOverlay? overlay = null;
+
+                if (string.IsNullOrEmpty(text) && _configStore.Current.EnableImageOcr)
                 {
-                    var ocrService = new OcrService();
-                    if (ocrService.IsSupported())
+                    var image = _clipboardManager.GetImage();
+                    if (image != null)
                     {
-                        text = await ocrService.RecognizeTextAsync(image);
-                        isFromOcr = !string.IsNullOrEmpty(text);
+                        var ocrService = new OcrService();
+                        if (ocrService.IsSupported())
+                        {
+                            overlay = new OcrOverlay();
+                            overlay.CancelRequested += (s, e) => {
+                                cts.Cancel();
+                                overlay.Close();
+                            };
+
+                            overlay.Show();
+
+                            try
+                            {
+                                text = await ocrService.RecognizeTextAsync(image, cts.Token);
+                                isFromOcr = !string.IsNullOrEmpty(text);
+                                
+                                if (cts.IsCancellationRequested) return;
+
+                                if (!isFromOcr)
+                                {
+                                    await overlay.ShowDoneAsync("No Text Detected.", false);
+                                    return;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"OCR Process Error: {ex.Message}");
+                                if (overlay != null && overlay.IsVisible) overlay.Close();
+                                return;
+                            }
+                        }
                     }
                 }
+
+                if (!string.IsNullOrEmpty(text))
+                {
+                    if (cts.IsCancellationRequested)
+                    {
+                        if (overlay != null && overlay.IsVisible) overlay.Close();
+                        return;
+                    }
+
+                    if (_configStore.Current.ExecutionDelaySeconds > 0)
+                    {
+                        var countdownOverlay = new CountdownOverlay();
+                        bool success = await countdownOverlay.StartCountdownAsync(_configStore.Current.ExecutionDelaySeconds);
+                        if (!success)
+                        {
+                            if (overlay != null && overlay.IsVisible) overlay.Close();
+                            return;
+                        }
+                    }
+
+                    await _inputSimulator.EnsureModifiersUpAsync();
+                    
+                    try
+                    {
+                        // [추가] 옵저버 패턴 연결: 타이핑 종료 시 UI 업데이트를 위해 이벤트 구독
+                        if (overlay != null && isFromOcr)
+                        {
+                            _inputSimulator.ProcessingChanged += (isProcessing) =>
+                            {
+                                // 사용자의 요청대로 '타이핑이 완료된 시점'(isProcessing == false)에 성공 메시지 표시
+                                if (!isProcessing && overlay.IsVisible)
+                                {
+                                    // UI 스레드에서 실행 보장
+                                    overlay.Dispatcher.Invoke(async () => {
+                                        await overlay.ShowDoneAsync("Successfully Pasted!", true);
+                                    });
+                                }
+                            };
+                        }
+
+                        if (isFromOcr)
+                        {
+                            // OCR 결과 주입 (내부에서 ProcessingChanged 이벤트 발생)
+                            await _inputSimulator.PasteTextAsBulkAsync(text, cts.Token);
+                        }
+                        else
+                        {
+                            // 일반 클립보드 텍스트 주입
+                            await _inputSimulator.TypeTextAsync(text, _configStore.Current.TypingDelay, cts.Token);
+                        }
+
+                        // 일반 타이핑의 경우 (overlay가 없는 경우) 별도 처리 불필요
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Paste Simulation Error: {ex.Message}");
+                        if (overlay != null && overlay.IsVisible) overlay.Close();
+                    }
+                }
+                else if (overlay != null && overlay.IsVisible)
+                {
+                    overlay.Close();
+                }
             }
-
-            if (!string.IsNullOrEmpty(text))
+            catch (Exception ex)
             {
-                if (_configStore.Current.ExecutionDelaySeconds > 0)
-                {
-                    var overlay = new CountdownOverlay();
-                    await overlay.StartCountdownAsync(_configStore.Current.ExecutionDelaySeconds);
-                }
-
-                await _inputSimulator.EnsureModifiersUpAsync();
-                
-                if (isFromOcr)
-                {
-                    // For OCR text, type it instantly (0ms delay) without touching the clipboard
-                    await _inputSimulator.TypeTextAsync(text, 0);
-                }
-                else
-                {
-                    await _inputSimulator.TypeTextAsync(text, _configStore.Current.TypingDelay);
-                }
+                System.Diagnostics.Debug.WriteLine($"Critical Error in HandlePaste: {ex.Message}");
             }
         }
-
 
         private void OpenSettings()
         {

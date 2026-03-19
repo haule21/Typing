@@ -2,8 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="CountdownOverlay" Height="150" Width="150"
-        WindowStyle="None" AllowsTransparency="True" Topmost="True" Background="Transparent" ShowInTaskbar="False"
-        WindowStartupLocation="Manual">
+        WindowStyle="None" AllowsTransparency="True" Topmost="True" Background="#01000000" ShowInTaskbar="False"
+        WindowStartupLocation="Manual" Focusable="True">
     <Grid>
         <Ellipse Fill="#80000000" Width="100" Height="100"/>
         <TextBlock x:Name="txtCountdown" Text="3" FontSize="50" FontWeight="Bold" Foreground="White" 
